@@ -1,0 +1,1983 @@
+[
+  {
+    "query_id": "SPEND-0266",
+    "query_text": "Which sub-category has highest sales?",
+    "sql": "SELECT p.sub_category, SUM(o.sales) as total_sales\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.sub_category\n                         ORDER BY total_sales DESC\n                         LIMIT 1",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0137",
+    "query_text": "Show me all products with high defect rates",
+    "sql": "SELECT p.sku, p.product_type, p.price, p.stock_levels, sc.defect_rate \n     FROM demand_data.products p\n     JOIN demand_data.supply_chain sc ON p.sku = sc.sku\n     WHERE sc.defect_rate > 0.1\n     ORDER BY sc.defect_rate DESC\n     LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0254",
+    "query_text": "What is production volume by supplier?",
+    "sql": "SELECT s.supplier_name, sc.sku, SUM(sc.production_volume) as total_production_volume\n     FROM demand_data.supply_chain sc\n     JOIN demand_data.suppliers s ON sc.supplier_id = s.supplier_id\n     GROUP BY s.supplier_name, sc.sku\n     ORDER BY total_production_volume DESC\n     LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0517",
+    "query_text": "Show me top products by profit margin in each category",
+    "sql": "SELECT p.category, p.product_name, SUM(o.profit) / NULLIF(SUM(o.sales), 0) AS profit_margin\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.category, p.product_name\n                         ORDER BY p.category, profit_margin DESC",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0326",
+    "query_text": "Which products have best revenue per stock unit?",
+    "sql": "SELECT p.sku, p.product_type, p.stock_levels, SUM(s.revenue_generated) / p.stock_levels AS revenue_per_stock_unit\nFROM demand_data.products p\nJOIN demand_data.sales s ON p.sku = s.sku\nWHERE p.stock_levels > 0\nGROUP BY p.sku, p.product_type, p.stock_levels\nORDER BY revenue_per_stock_unit DESC\nLIMIT 100",
+    "complexity": "complex",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0145",
+    "query_text": "Show me orders with high priority",
+    "sql": "SELECT * FROM spend_data.orders WHERE order_priority = 'High' LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0302",
+    "query_text": "Show me top 10 customers by profit",
+    "sql": "SELECT c.customer_name, SUM(o.profit) as total_profit\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.customer_name\n                         ORDER BY total_profit DESC\n                         LIMIT 10",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0007",
+    "query_text": "What products are in the Office Supplies category?",
+    "sql": "SELECT product_name FROM spend_data.products WHERE category = 'Office Supplies'",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0518",
+    "query_text": "What is the profit margin by product category for Home Office segment?",
+    "sql": "SELECT p.category, SUM(o.profit) / SUM(o.sales) * 100 AS profit_margin\n     FROM spend_data.orders o\n     JOIN spend_data.customers c ON o.customer_id = c.customer_id\n     JOIN spend_data.products p ON o.product_id = p.product_id\n     WHERE c.segment = 'Home Office'\n     GROUP BY p.category\n     ORDER BY profit_margin DESC\n     LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0599",
+    "query_text": "What is customer lifetime value by segment?",
+    "sql": "SELECT c.segment, c.customer_name, SUM(o.sales) as lifetime_value\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.segment, c.customer_name\n                         ORDER BY c.segment, lifetime_value DESC\n                         LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0310",
+    "query_text": "Show me monthly sales trend for 2011",
+    "sql": "SELECT DATE_TRUNC('month', order_date) AS month, SUM(sales) AS total_sales\n     FROM spend_data.orders\n     WHERE year = 2011\n     GROUP BY DATE_TRUNC('month', order_date)\n     ORDER BY month",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0582",
+    "query_text": "What is average order value by customer segment and region?",
+    "sql": "SELECT c.segment, c.region, AVG(o.sales) as average_order_value\n     FROM spend_data.orders o\n     JOIN spend_data.customers c ON o.customer_id = c.customer_id\n     GROUP BY c.segment, c.region\n     ORDER BY c.segment, c.region",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0219",
+    "query_text": "Show me suppliers ranked by lead time",
+    "sql": "SELECT supplier_name, location, AVG(lead_time) as avg_lead_time FROM demand_data.suppliers GROUP BY supplier_name, location ORDER BY avg_lead_time ASC LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0527",
+    "query_text": "Show me products that are frequently ordered together",
+    "sql": "SELECT o1.product_id AS product_1, o2.product_id AS product_2, COUNT(*) AS frequency\n     FROM spend_data.orders o1\n     JOIN spend_data.orders o2 ON o1.order_id = o2.order_id AND o1.product_id <> o2.product_id\n     GROUP BY o1.product_id, o2.product_id\n     ORDER BY frequency DESC\n     LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0358",
+    "query_text": "What is the average sales by category?",
+    "sql": "SELECT p.category, AVG(o.sales) as average_sales\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.category",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0374",
+    "query_text": "What is the average sales by category?",
+    "sql": "SELECT p.category, AVG(o.sales) as average_sales\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.category",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0243",
+    "query_text": "What is stock turnover ratio?",
+    "sql": "SELECT p.sku, \n            p.product_type, \n            COALESCE(SUM(s.products_sold), 0) / NULLIF(AVG(p.stock_levels), 0) AS stock_turnover_ratio\n     FROM demand_data.products p\n     LEFT JOIN demand_data.sales s ON p.sku = s.sku\n     GROUP BY p.sku, p.product_type\n     ORDER BY stock_turnover_ratio DESC\n     LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0424",
+    "query_text": "What is average shipping cost by ship mode?",
+    "sql": "SELECT ship_mode, AVG(shipping_cost) as average_shipping_cost FROM spend_data.orders GROUP BY ship_mode",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0152",
+    "query_text": "What was total sales in 2012?",
+    "sql": "SELECT SUM(sales) as total_sales FROM spend_data.orders WHERE year = 2012",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0003",
+    "query_text": "Which products have stock below 20?",
+    "sql": "SELECT sku, product_type, stock_levels FROM demand_data.products WHERE stock_levels < 20 ORDER BY stock_levels ASC LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0304",
+    "query_text": "Show me products with negative profit",
+    "sql": "SELECT p.product_name, SUM(o.profit) as total_profit\n     FROM spend_data.orders o\n     JOIN spend_data.products p ON o.product_id = p.product_id\n     GROUP BY p.product_name\n     HAVING SUM(o.profit) < 0\n     ORDER BY total_profit ASC",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0483",
+    "query_text": "What is the correlation between discount and profit?",
+    "sql": "SELECT CORR(discount, profit) as discount_profit_correlation FROM spend_data.orders",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0185",
+    "query_text": "Which products have highest defect rate?",
+    "sql": "SELECT sku, defect_rate FROM demand_data.supply_chain ORDER BY defect_rate DESC LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0318",
+    "query_text": "Show me top 10 customers by profit",
+    "sql": "SELECT c.customer_name, SUM(o.profit) as total_profit\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.customer_name\n                         ORDER BY total_profit DESC\n                         LIMIT 10",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0278",
+    "query_text": "Which category has most orders?",
+    "sql": "SELECT p.category, COUNT(o.order_id) as total_orders\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.category\n                         ORDER BY total_orders DESC\n                         LIMIT 1",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0038",
+    "query_text": "Which supplier is located in Kolkata?",
+    "sql": "SELECT supplier_name, location FROM demand_data.suppliers WHERE location = 'Kolkata' LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0110",
+    "query_text": "Show me products with availability above 90%",
+    "sql": "SELECT sku, product_type, availability, stock_levels FROM demand_data.products WHERE availability > 90 ORDER BY availability DESC LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0081",
+    "query_text": "What categories do we have?",
+    "sql": "SELECT DISTINCT category FROM spend_data.products",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0588",
+    "query_text": "Which customers have highest order frequency?",
+    "sql": "SELECT c.customer_name, COUNT(o.order_id) as order_frequency\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.customer_name\n                         ORDER BY order_frequency DESC\n                         LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0162",
+    "query_text": "What is average manufacturing cost by supplier?",
+    "sql": "SELECT s.supplier_name, AVG(sc.manufacturing_cost) as avg_manufacturing_cost\n     FROM demand_data.supply_chain sc\n     JOIN demand_data.suppliers s ON sc.supplier_id = s.supplier_id\n     GROUP BY s.supplier_name\n     ORDER BY avg_manufacturing_cost ASC\n     LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0098",
+    "query_text": "Show me products with availability above 50%",
+    "sql": "SELECT sku, product_type, availability, stock_levels FROM demand_data.products WHERE availability > 50 ORDER BY availability DESC LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0005",
+    "query_text": "What is the average order value?",
+    "sql": "SELECT AVG(sales) as average_order_value FROM spend_data.orders",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0264",
+    "query_text": "Which sub-category has highest sales?",
+    "sql": "SELECT p.sub_category, SUM(o.sales) as total_sales\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.sub_category\n                         ORDER BY total_sales DESC\n                         LIMIT 1",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0297",
+    "query_text": "What is optimal reorder quantity for each product?",
+    "sql": "SELECT p.sku, p.product_type, p.stock_levels, p.availability, s.order_quantities AS optimal_reorder_quantity\n     FROM demand_data.products p\n     JOIN (\n         SELECT sku, AVG(order_quantities) AS order_quantities\n         FROM demand_data.sales\n         GROUP BY sku\n     ) s ON p.sku = s.sku\n     ORDER BY p.sku\n     LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0034",
+    "query_text": "What was total sales in 2013?",
+    "sql": "SELECT SUM(sales) as total_sales FROM spend_data.orders WHERE year = 2013",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0316",
+    "query_text": "Which sub-category has highest sales?",
+    "sql": "SELECT p.sub_category, SUM(o.sales) as total_sales\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.sub_category\n                         ORDER BY total_sales DESC\n                         LIMIT 1",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0281",
+    "query_text": "Which category has most orders?",
+    "sql": "SELECT p.category, COUNT(o.order_id) as total_orders\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.category\n                         ORDER BY total_orders DESC\n                         LIMIT 1",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0390",
+    "query_text": "What is sales distribution by segment?",
+    "sql": "SELECT c.segment, SUM(o.sales) as total_sales\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.segment\n                         ORDER BY total_sales DESC",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0450",
+    "query_text": "What is average shipping cost by ship mode?",
+    "sql": "SELECT ship_mode, AVG(shipping_cost) as average_shipping_cost FROM spend_data.orders GROUP BY ship_mode",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0236",
+    "query_text": "Which products have highest revenue?",
+    "sql": "SELECT p.sku, p.product_type, SUM(s.revenue_generated) as total_revenue\n     FROM demand_data.products p\n     JOIN demand_data.sales s ON p.sku = s.sku\n     GROUP BY p.sku, p.product_type\n     ORDER BY total_revenue DESC\n     LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0513",
+    "query_text": "Show me year-over-year sales growth by category",
+    "sql": "SELECT p.category, o.year, SUM(o.sales) as total_sales, \n             (SUM(o.sales) - LAG(SUM(o.sales)) OVER (PARTITION BY p.category ORDER BY o.year)) / NULLIF(LAG(SUM(o.sales)) OVER (PARTITION BY p.category ORDER BY o.year), 0) * 100 as yoy_growth\n     FROM spend_data.orders o\n     JOIN spend_data.products p ON o.product_id = p.product_id\n     GROUP BY p.category, o.year\n     ORDER BY p.category, o.year",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0461",
+    "query_text": "Which products have highest profit margin?",
+    "sql": "SELECT p.product_name, SUM(o.profit) / SUM(o.sales) AS profit_margin\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.product_name\n                         ORDER BY profit_margin DESC\n                         LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0434",
+    "query_text": "Show me monthly sales trend for 2012",
+    "sql": "SELECT DATE_TRUNC('month', order_date) AS month, SUM(sales) AS total_sales\n     FROM spend_data.orders\n     WHERE year = 2012\n     GROUP BY DATE_TRUNC('month', order_date)\n     ORDER BY month",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0548",
+    "query_text": "What is customer lifetime value by segment?",
+    "sql": "SELECT c.segment, c.customer_name, SUM(o.sales) as lifetime_value\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.segment, c.customer_name\n                         ORDER BY c.segment, lifetime_value DESC\n                         LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0330",
+    "query_text": "Which customers spent the most?",
+    "sql": "SELECT c.customer_name, SUM(o.sales) as total_spend\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.customer_name\n                         ORDER BY total_spend DESC\n                         LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0123",
+    "query_text": "What is average price of products?",
+    "sql": "SELECT AVG(price) as average_price FROM demand_data.products",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0176",
+    "query_text": "How many orders were placed in 2014?",
+    "sql": "SELECT COUNT(order_id) as total_orders FROM spend_data.orders WHERE year = 2014",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0142",
+    "query_text": "What was total sales in 2014?",
+    "sql": "SELECT SUM(sales) as total_sales FROM spend_data.orders WHERE year = 2014",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0484",
+    "query_text": "What is the profit margin by product category for Home Office segment?",
+    "sql": "SELECT p.category, SUM(o.profit) / SUM(o.sales) * 100 AS profit_margin\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         WHERE c.segment = 'Home Office'\n                         GROUP BY p.category\n                         ORDER BY profit_margin DESC\n                         LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0104",
+    "query_text": "What categories do we have?",
+    "sql": "SELECT DISTINCT category FROM spend_data.products",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0554",
+    "query_text": "Show me year-over-year sales growth by category",
+    "sql": "SELECT p.category, o.year, SUM(o.sales) as total_sales, \n             (SUM(o.sales) - LAG(SUM(o.sales)) OVER (PARTITION BY p.category ORDER BY o.year)) / NULLIF(LAG(SUM(o.sales)) OVER (PARTITION BY p.category ORDER BY o.year), 0) * 100 as yoy_growth\n     FROM spend_data.orders o\n     JOIN spend_data.products p ON o.product_id = p.product_id\n     GROUP BY p.category, o.year\n     ORDER BY p.category, o.year",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0400",
+    "query_text": "What is total sales by segment?",
+    "sql": "SELECT c.segment, SUM(o.sales) as total_sales\n     FROM spend_data.orders o\n     JOIN spend_data.customers c ON o.customer_id = c.customer_id\n     GROUP BY c.segment",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0285",
+    "query_text": "What is total revenue by product type?",
+    "sql": "SELECT p.product_type, SUM(s.revenue_generated) as total_revenue\n     FROM demand_data.sales s\n     JOIN demand_data.products p ON s.sku = p.sku\n     GROUP BY p.product_type\n     ORDER BY total_revenue DESC",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0038",
+    "query_text": "Show me all Standard Class shipments",
+    "sql": "SELECT * FROM spend_data.orders WHERE ship_mode = 'Standard Class' LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0240",
+    "query_text": "What is the average order value?",
+    "sql": "SELECT AVG(sales) as average_order_value FROM spend_data.orders",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0157",
+    "query_text": "List all Corporate segment customers",
+    "sql": "SELECT * FROM spend_data.customers WHERE segment = 'Corporate'",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0063",
+    "query_text": "Show me all products with high defect rates",
+    "sql": "SELECT p.sku, p.product_type, p.price, p.stock_levels, sc.defect_rate \n     FROM demand_data.products p\n     JOIN demand_data.supply_chain sc ON p.sku = sc.sku\n     WHERE sc.defect_rate > 0.1\n     ORDER BY sc.defect_rate DESC\n     LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0515",
+    "query_text": "Which products have declining sales over time?",
+    "sql": "SELECT p.product_name, o.year, SUM(o.sales) as total_sales\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.product_name, o.year\n                         HAVING COUNT(DISTINCT o.year) > 1\n                         ORDER BY p.product_name, o.year",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0078",
+    "query_text": "List all Corporate segment customers",
+    "sql": "SELECT customer_id, customer_name, segment, state, country, market, region \n     FROM spend_data.customers \n     WHERE segment = 'Corporate' \n     LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0160",
+    "query_text": "What products are in the Furniture category?",
+    "sql": "SELECT product_name FROM spend_data.products WHERE category = 'Furniture'",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0169",
+    "query_text": "What is the average order value?",
+    "sql": "SELECT AVG(sales) as average_order_value FROM spend_data.orders",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0195",
+    "query_text": "What was total quantity sold in 2011?",
+    "sql": "SELECT SUM(quantity) as total_quantity_sold FROM spend_data.orders WHERE year = 2011",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0503",
+    "query_text": "What is the profit margin by product category for Corporate segment?",
+    "sql": "SELECT p.category, SUM(o.profit) / SUM(o.sales) * 100 AS profit_margin\n     FROM spend_data.orders o\n     JOIN spend_data.customers c ON o.customer_id = c.customer_id\n     JOIN spend_data.products p ON o.product_id = p.product_id\n     WHERE c.segment = 'Corporate'\n     GROUP BY p.category\n     ORDER BY profit_margin DESC\n     LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0333",
+    "query_text": "Which supplier-product combinations are most efficient?",
+    "sql": "SELECT sc.sku, s.supplier_name, sc.total_cost, sc.lead_time, sc.defect_rate\n     FROM demand_data.supply_chain sc\n     JOIN demand_data.suppliers s ON sc.supplier_id = s.supplier_id\n     ORDER BY sc.total_cost ASC, sc.lead_time ASC, sc.defect_rate ASC\n     LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0549",
+    "query_text": "Which customers in US market had highest spend in 2014 with orders above $5000?",
+    "sql": "SELECT c.customer_name, SUM(o.sales) as total_spend\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         WHERE c.market = 'US' AND o.year = 2014\n                         GROUP BY c.customer_name\n                         HAVING SUM(o.sales) > 5000\n                         ORDER BY total_spend DESC\n                         LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0115",
+    "query_text": "What categories do we have?",
+    "sql": "SELECT DISTINCT category FROM spend_data.products",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0272",
+    "query_text": "What is average manufacturing cost by supplier?",
+    "sql": "SELECT s.supplier_name, AVG(sc.manufacturing_cost) as avg_manufacturing_cost\nFROM demand_data.supply_chain sc\nJOIN demand_data.suppliers s ON sc.supplier_id = s.supplier_id\nGROUP BY s.supplier_name\nORDER BY avg_manufacturing_cost ASC;",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0332",
+    "query_text": "Show me supplier performance score based on lead time and defect rate",
+    "sql": "SELECT s.supplier_name, s.location, AVG(sc.lead_time) AS avg_lead_time, AVG(sc.defect_rate) AS avg_defect_rate, \n             (1.0 / NULLIF(AVG(sc.lead_time), 0)) * (1.0 - AVG(sc.defect_rate)) AS performance_score\n     FROM demand_data.suppliers s\n     JOIN demand_data.supply_chain sc ON s.supplier_id = sc.supplier_id\n     GROUP BY s.supplier_name, s.location\n     ORDER BY performance_score DESC\n     LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0530",
+    "query_text": "Show me products with high sales but low profit",
+    "sql": "SELECT p.product_name, SUM(o.sales) as total_sales, SUM(o.profit) as total_profit\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.product_name\n                         HAVING SUM(o.sales) > 0 AND SUM(o.profit) < 0\n                         ORDER BY total_sales DESC\n                         LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0373",
+    "query_text": "What is total sales by segment?",
+    "sql": "SELECT c.segment, SUM(o.sales) as total_sales\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.segment",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0282",
+    "query_text": "What is total revenue by product type?",
+    "sql": "SELECT p.product_type, SUM(s.revenue_generated) as total_revenue\n     FROM demand_data.sales s\n     JOIN demand_data.products p ON s.sku = p.sku\n     GROUP BY p.product_type\n     ORDER BY total_revenue DESC",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0004",
+    "query_text": "What categories do we have?",
+    "sql": "SELECT DISTINCT category FROM spend_data.products",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0213",
+    "query_text": "What is stock turnover ratio?",
+    "sql": "SELECT p.sku, \n            p.product_type, \n            COALESCE(SUM(s.products_sold) / NULLIF(AVG(p.stock_levels), 0), 0) AS stock_turnover_ratio\n     FROM demand_data.products p\n     LEFT JOIN demand_data.sales s ON p.sku = s.sku\n     GROUP BY p.sku, p.product_type\n     ORDER BY stock_turnover_ratio DESC\n     LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0541",
+    "query_text": "What is the correlation between discount and profit?",
+    "sql": "SELECT CORR(discount, profit) as discount_profit_correlation FROM spend_data.orders",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0131",
+    "query_text": "What is average shipping cost?",
+    "sql": "SELECT AVG(shipping_cost) as average_shipping_cost FROM demand_data.supply_chain",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0201",
+    "query_text": "How many products are in Furniture?",
+    "sql": "SELECT COUNT(*) as total_products FROM spend_data.products WHERE category = 'Furniture'",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0073",
+    "query_text": "What was total quantity sold in 2014?",
+    "sql": "SELECT SUM(quantity) as total_quantity_sold FROM spend_data.orders WHERE year = 2014",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0130",
+    "query_text": "What is average shipping cost?",
+    "sql": "SELECT AVG(shipping_cost) as average_shipping_cost FROM demand_data.supply_chain",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0129",
+    "query_text": "How many orders were placed in 2012?",
+    "sql": "SELECT COUNT(order_id) as total_orders FROM spend_data.orders WHERE year = 2012",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0101",
+    "query_text": "What was total quantity sold in 2011?",
+    "sql": "SELECT SUM(quantity) as total_quantity_sold FROM spend_data.orders WHERE year = 2011",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0043",
+    "query_text": "How many products are out of stock?",
+    "sql": "SELECT COUNT(*) as out_of_stock_count FROM demand_data.products WHERE stock_levels = 0",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0239",
+    "query_text": "Which products have highest defect rate?",
+    "sql": "SELECT sku, defect_rate FROM demand_data.supply_chain ORDER BY defect_rate DESC LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0148",
+    "query_text": "What is average shipping cost?",
+    "sql": "SELECT AVG(shipping_cost) as average_shipping_cost FROM demand_data.supply_chain",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0078",
+    "query_text": "What is average shipping cost?",
+    "sql": "SELECT AVG(shipping_cost) as average_shipping_cost FROM demand_data.supply_chain",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0061",
+    "query_text": "Show me all First Class shipments",
+    "sql": "SELECT * FROM spend_data.orders WHERE ship_mode = 'First Class' LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0009",
+    "query_text": "Show me all orders from LATAM market",
+    "sql": "SELECT o.* \n     FROM spend_data.orders o\n     JOIN spend_data.customers c ON o.customer_id = c.customer_id\n     WHERE c.market = 'LATAM'\n     LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0064",
+    "query_text": "List all customers from South region",
+    "sql": "SELECT * FROM spend_data.customers WHERE region = 'South' LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0182",
+    "query_text": "Which supplier has shortest lead time?",
+    "sql": "SELECT supplier_name, location, MIN(lead_time) as shortest_lead_time FROM demand_data.suppliers GROUP BY supplier_name, location ORDER BY shortest_lead_time ASC LIMIT 1",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0216",
+    "query_text": "Show me suppliers ranked by lead time",
+    "sql": "SELECT supplier_name, location, lead_time FROM demand_data.suppliers ORDER BY lead_time ASC LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0505",
+    "query_text": "What is the profit margin by product category for Corporate segment?",
+    "sql": "SELECT p.category, SUM(o.profit) / SUM(o.sales) * 100 AS profit_margin\n     FROM spend_data.orders o\n     JOIN spend_data.customers c ON o.customer_id = c.customer_id\n     JOIN spend_data.products p ON o.product_id = p.product_id\n     WHERE c.segment = 'Corporate'\n     GROUP BY p.category\n     ORDER BY profit_margin DESC\n     LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0258",
+    "query_text": "What is production volume by supplier?",
+    "sql": "SELECT s.supplier_name, sc.sku, SUM(sc.production_volume) as total_production_volume\n     FROM demand_data.supply_chain sc\n     JOIN demand_data.suppliers s ON sc.supplier_id = s.supplier_id\n     GROUP BY s.supplier_name, sc.sku\n     ORDER BY total_production_volume DESC\n     LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0227",
+    "query_text": "What was total quantity sold in 2012?",
+    "sql": "SELECT SUM(quantity) as total_quantity_sold FROM spend_data.orders WHERE year = 2012",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0207",
+    "query_text": "List all Consumer segment customers",
+    "sql": "SELECT * FROM spend_data.customers WHERE segment = 'Consumer' LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0115",
+    "query_text": "What is total revenue generated?",
+    "sql": "SELECT SUM(revenue_generated) as total_revenue FROM demand_data.sales",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0111",
+    "query_text": "What is the average order value?",
+    "sql": "SELECT AVG(sales) as average_order_value FROM spend_data.orders",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0300",
+    "query_text": "Which products have best revenue per stock unit?",
+    "sql": "SELECT p.sku, p.product_type, p.stock_levels, SUM(s.revenue_generated) / p.stock_levels AS revenue_per_stock_unit\nFROM demand_data.products p\nJOIN demand_data.sales s ON p.sku = s.sku\nWHERE p.stock_levels > 0\nGROUP BY p.sku, p.product_type, p.stock_levels\nORDER BY revenue_per_stock_unit DESC\nLIMIT 100",
+    "complexity": "complex",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0565",
+    "query_text": "What is average order value by customer segment and region?",
+    "sql": "SELECT c.segment, c.region, AVG(o.sales) as average_order_value\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.segment, c.region",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0109",
+    "query_text": "List suppliers by location",
+    "sql": "SELECT supplier_name, location FROM demand_data.suppliers GROUP BY supplier_name, location ORDER BY location ASC LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0506",
+    "query_text": "What is quarterly sales trend by market?",
+    "sql": "SELECT o.year, EXTRACT(quarter FROM o.order_date) AS quarter, c.market, SUM(o.sales) AS total_sales\n     FROM spend_data.orders o\n     JOIN spend_data.customers c ON o.customer_id = c.customer_id\n     GROUP BY o.year, quarter, c.market\n     ORDER BY o.year, quarter, c.market",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0018",
+    "query_text": "Show me orders with high priority",
+    "sql": "SELECT * FROM spend_data.orders WHERE order_priority = 'High' LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0377",
+    "query_text": "Which region has highest profit?",
+    "sql": "SELECT c.region, SUM(o.profit) as total_profit\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.region\n                         ORDER BY total_profit DESC\n                         LIMIT 1",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0376",
+    "query_text": "Which region has highest profit?",
+    "sql": "SELECT c.region, SUM(o.profit) as total_profit\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.region\n                         ORDER BY total_profit DESC\n                         LIMIT 1",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0058",
+    "query_text": "Show me products with availability above 50%",
+    "sql": "SELECT sku, product_type, availability FROM demand_data.products WHERE availability > 50 ORDER BY availability DESC LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0214",
+    "query_text": "Show me orders with high priority",
+    "sql": "SELECT * FROM spend_data.orders WHERE order_priority = 'High' LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0065",
+    "query_text": "Show me products with availability above 50%",
+    "sql": "SELECT sku, product_type, availability FROM demand_data.products WHERE availability > 50 ORDER BY availability DESC LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0035",
+    "query_text": "What is total order quantities?",
+    "sql": "SELECT SUM(order_quantities) as total_order_quantities FROM demand_data.sales",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0342",
+    "query_text": "What is optimal reorder quantity for each product?",
+    "sql": "SELECT p.sku, p.product_type, p.stock_levels, p.availability, s.order_quantities, \n            (p.stock_levels + s.order_quantities - p.availability) AS optimal_reorder_quantity\n     FROM demand_data.products p\n     JOIN demand_data.sales s ON p.sku = s.sku\n     WHERE p.availability > 0\n     GROUP BY p.sku, p.product_type, p.stock_levels, p.availability, s.order_quantities\n     ORDER BY p.sku\n     LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0479",
+    "query_text": "Show me top 10 customers by profit",
+    "sql": "SELECT c.customer_name, SUM(o.profit) as total_profit\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.customer_name\n                         ORDER BY total_profit DESC\n                         LIMIT 10",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0476",
+    "query_text": "What is sales by market and region?",
+    "sql": "SELECT c.market, c.region, SUM(o.sales) as total_sales\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.market, c.region\n                         ORDER BY c.market, c.region",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0044",
+    "query_text": "What is total shipping cost for 2012?",
+    "sql": "SELECT SUM(shipping_cost) as total_shipping_cost FROM spend_data.orders WHERE year = 2012",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0442",
+    "query_text": "What is average shipping cost by ship mode?",
+    "sql": "SELECT ship_mode, AVG(shipping_cost) as average_shipping_cost FROM spend_data.orders GROUP BY ship_mode",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0380",
+    "query_text": "What is average discount by category?",
+    "sql": "SELECT p.category, AVG(o.discount) as average_discount\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.category",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0596",
+    "query_text": "What is average order value by customer segment and region?",
+    "sql": "SELECT c.segment, c.region, AVG(o.sales) as average_order_value\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.segment, c.region\n                         ORDER BY c.segment, c.region",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0076",
+    "query_text": "What was total profit in 2013?",
+    "sql": "SELECT SUM(profit) as total_profit FROM spend_data.orders WHERE year = 2013",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0114",
+    "query_text": "What is average lead time?",
+    "sql": "SELECT AVG(lead_time) as average_lead_time FROM demand_data.suppliers",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0307",
+    "query_text": "Show me correlation between manufacturing cost and defect rate",
+    "sql": "SELECT manufacturing_cost, defect_rate FROM demand_data.supply_chain",
+    "complexity": "complex",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0533",
+    "query_text": "Show me year-over-year sales growth by category",
+    "sql": "SELECT p.category, o.year, SUM(o.sales) as total_sales, \n             (SUM(o.sales) - LAG(SUM(o.sales)) OVER (PARTITION BY p.category ORDER BY o.year)) / NULLIF(LAG(SUM(o.sales)) OVER (PARTITION BY p.category ORDER BY o.year), 0) * 100 as yoy_growth_percentage\n      FROM spend_data.orders o\n      JOIN spend_data.products p ON o.product_id = p.product_id\n      GROUP BY p.category, o.year\n      ORDER BY p.category, o.year",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0563",
+    "query_text": "What is the profit margin by product category for Consumer segment?",
+    "sql": "SELECT p.category, SUM(o.profit) / SUM(o.sales) * 100 AS profit_margin\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         WHERE c.segment = 'Consumer'\n                         GROUP BY p.category\n                         ORDER BY profit_margin DESC\n                         LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0050",
+    "query_text": "What is total shipping cost for 2013?",
+    "sql": "SELECT SUM(shipping_cost) as total_shipping_cost FROM spend_data.orders WHERE year = 2013",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0491",
+    "query_text": "Show me products with high sales but low profit",
+    "sql": "SELECT p.product_name, SUM(o.sales) as total_sales, SUM(o.profit) as total_profit\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.product_name\n                         HAVING SUM(o.sales) > 0 AND SUM(o.profit) < 0\n                         ORDER BY total_sales DESC\n                         LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0006",
+    "query_text": "What is the average order value?",
+    "sql": "SELECT AVG(sales) as average_order_value FROM spend_data.orders",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0231",
+    "query_text": "What categories do we have?",
+    "sql": "SELECT DISTINCT category FROM spend_data.products",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0371",
+    "query_text": "Show me top 10 customers by profit",
+    "sql": "SELECT c.customer_name, SUM(o.profit) as total_profit\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.customer_name\n                         ORDER BY total_profit DESC\n                         LIMIT 10",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0512",
+    "query_text": "Which customers in LATAM market had highest spend in 2011 with orders above $500?",
+    "sql": "SELECT c.customer_name, SUM(o.sales) as total_spend\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         WHERE c.market = 'LATAM' AND o.year = 2011 AND o.sales > 500\n                         GROUP BY c.customer_name\n                         ORDER BY total_spend DESC\n                         LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0040",
+    "query_text": "What is total revenue generated?",
+    "sql": "SELECT SUM(revenue_generated) as total_revenue FROM demand_data.sales",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0014",
+    "query_text": "What is total products sold?",
+    "sql": "SELECT SUM(products_sold) as total_products_sold FROM demand_data.sales",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0574",
+    "query_text": "What is customer lifetime value by segment?",
+    "sql": "SELECT c.segment, c.customer_name, SUM(o.sales) as lifetime_value\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.segment, c.customer_name\n                         ORDER BY c.segment, lifetime_value DESC\n                         LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0220",
+    "query_text": "Which products have highest revenue?",
+    "sql": "SELECT p.sku, p.product_type, SUM(s.revenue_generated) as total_revenue\n     FROM demand_data.products p\n     JOIN demand_data.sales s ON p.sku = s.sku\n     GROUP BY p.sku, p.product_type\n     ORDER BY total_revenue DESC\n     LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0219",
+    "query_text": "List all Corporate segment customers",
+    "sql": "SELECT * FROM spend_data.customers WHERE segment = 'Corporate'",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0209",
+    "query_text": "What was total sales in 2011?",
+    "sql": "SELECT SUM(sales) as total_sales FROM spend_data.orders WHERE year = 2011",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0044",
+    "query_text": "Show me all products with high defect rates",
+    "sql": "SELECT p.sku, p.product_type, p.price, p.stock_levels, sc.defect_rate \nFROM demand_data.products p\nJOIN demand_data.supply_chain sc ON p.sku = sc.sku\nWHERE sc.defect_rate > 0.1\nORDER BY sc.defect_rate DESC\nLIMIT 100",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0103",
+    "query_text": "What is total products sold?",
+    "sql": "SELECT SUM(products_sold) as total_products_sold FROM demand_data.sales",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0430",
+    "query_text": "What is the average sales by category?",
+    "sql": "SELECT p.category, AVG(o.sales) as average_sales\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.category",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0432",
+    "query_text": "Show me top 10 customers by profit",
+    "sql": "SELECT c.customer_name, SUM(o.profit) as total_profit\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.customer_name\n                         ORDER BY total_profit DESC\n                         LIMIT 10",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0340",
+    "query_text": "Show me products with highest profit margin",
+    "sql": "SELECT p.sku, p.product_type, p.price - sc.manufacturing_cost AS profit_margin\n     FROM demand_data.products p\n     JOIN demand_data.supply_chain sc ON p.sku = sc.sku\n     ORDER BY profit_margin DESC\n     LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0025",
+    "query_text": "Show me all orders from US market",
+    "sql": "SELECT * \nFROM spend_data.orders o\nJOIN spend_data.customers c ON o.customer_id = c.customer_id\nWHERE c.market = 'US' \nLIMIT 100",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0094",
+    "query_text": "Show me products with availability above 75%",
+    "sql": "SELECT sku, product_type, price, availability, stock_levels FROM demand_data.products WHERE availability > 75 ORDER BY availability DESC LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0102",
+    "query_text": "How many products are out of stock?",
+    "sql": "SELECT COUNT(*) as out_of_stock_count FROM demand_data.products WHERE stock_levels = 0",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0425",
+    "query_text": "What are the top 5 products by sales?",
+    "sql": "SELECT p.product_name, SUM(o.sales) as total_sales\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.product_name\n                         ORDER BY total_sales DESC\n                         LIMIT 5",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0422",
+    "query_text": "What is the average sales by category?",
+    "sql": "SELECT p.category, AVG(o.sales) as average_sales\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.category",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0020",
+    "query_text": "What products are in the Technology category?",
+    "sql": "SELECT product_name FROM spend_data.products WHERE category = 'Technology'",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0295",
+    "query_text": "Which products have highest profit margin?",
+    "sql": "SELECT p.product_name, SUM(o.profit) / SUM(o.sales) AS profit_margin\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.product_name\n                         ORDER BY profit_margin DESC\n                         LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0012",
+    "query_text": "Show me all products with high defect rates",
+    "sql": "SELECT p.sku, p.product_type, p.price, p.stock_levels, sc.defect_rate \n     FROM demand_data.products p\n     JOIN demand_data.supply_chain sc ON p.sku = sc.sku\n     WHERE sc.defect_rate > 0.1\n     ORDER BY sc.defect_rate DESC\n     LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0187",
+    "query_text": "Which products have highest defect rate?",
+    "sql": "SELECT sku, defect_rate FROM demand_data.supply_chain ORDER BY defect_rate DESC LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0077",
+    "query_text": "What is total manufacturing cost?",
+    "sql": "SELECT SUM(manufacturing_cost) as total_manufacturing_cost FROM demand_data.supply_chain",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0334",
+    "query_text": "Which supplier-product combinations are most efficient?",
+    "sql": "SELECT sc.sku, s.supplier_name, sc.total_cost, sc.lead_time, sc.defect_rate\n     FROM demand_data.supply_chain sc\n     JOIN demand_data.suppliers s ON sc.supplier_id = s.supplier_id\n     ORDER BY sc.total_cost ASC, sc.lead_time ASC, sc.defect_rate ASC\n     LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0497",
+    "query_text": "Which products have declining sales over time?",
+    "sql": "SELECT p.product_name, o.year, SUM(o.sales) as total_sales\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.product_name, o.year\n                         ORDER BY p.product_name, o.year",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0372",
+    "query_text": "Which region has highest profit?",
+    "sql": "SELECT c.region, SUM(o.profit) as total_profit\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.region\n                         ORDER BY total_profit DESC\n                         LIMIT 1",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0066",
+    "query_text": "Show me products with availability above 50%",
+    "sql": "SELECT sku, product_type, availability, stock_levels FROM demand_data.products WHERE availability > 50 ORDER BY availability DESC LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0447",
+    "query_text": "What is average shipping cost by ship mode?",
+    "sql": "SELECT ship_mode, AVG(shipping_cost) as average_shipping_cost FROM spend_data.orders GROUP BY ship_mode",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0375",
+    "query_text": "Which category has most orders?",
+    "sql": "SELECT p.category, COUNT(o.order_id) as total_orders\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.category\n                         ORDER BY total_orders DESC\n                         LIMIT 1",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0329",
+    "query_text": "Show me supplier performance score based on lead time and defect rate",
+    "sql": "SELECT s.supplier_name, s.location, AVG(sc.lead_time) AS avg_lead_time, AVG(sc.defect_rate) AS avg_defect_rate, \n             (1.0 / NULLIF(AVG(sc.lead_time), 0) + (1.0 - AVG(sc.defect_rate))) AS performance_score\n     FROM demand_data.suppliers s\n     JOIN demand_data.supply_chain sc ON s.supplier_id = sc.supplier_id\n     GROUP BY s.supplier_name, s.location\n     ORDER BY performance_score DESC\n     LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0005",
+    "query_text": "Show me all products with high defect rates",
+    "sql": "SELECT p.sku, p.product_type, p.price, p.stock_levels, sc.defect_rate \n     FROM demand_data.products p\n     JOIN demand_data.supply_chain sc ON p.sku = sc.sku\n     WHERE sc.defect_rate > 0.1\n     ORDER BY sc.defect_rate DESC\n     LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0341",
+    "query_text": "Which region has highest profit?",
+    "sql": "SELECT c.region, SUM(o.profit) as total_profit\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.region\n                         ORDER BY total_profit DESC\n                         LIMIT 1",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0244",
+    "query_text": "What is sales distribution by segment?",
+    "sql": "SELECT c.segment, SUM(o.sales) as total_sales\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.segment\n                         ORDER BY total_sales DESC",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0448",
+    "query_text": "What is total sales by segment?",
+    "sql": "SELECT c.segment, SUM(o.sales) as total_sales\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.segment",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0060",
+    "query_text": "List all customers from South region",
+    "sql": "SELECT customer_id, customer_name, segment, state, country, market, region \n     FROM spend_data.customers \n     WHERE region = 'South'",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0281",
+    "query_text": "Which supplier has shortest lead time?",
+    "sql": "SELECT supplier_name, location, MIN(lead_time) as shortest_lead_time FROM demand_data.suppliers GROUP BY supplier_name, location ORDER BY shortest_lead_time ASC LIMIT 1",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0536",
+    "query_text": "What is the shipping cost as percentage of sales by region?",
+    "sql": "SELECT c.region, (SUM(o.shipping_cost) / SUM(o.sales)) * 100 AS shipping_cost_percentage\n     FROM spend_data.orders o\n     JOIN spend_data.customers c ON o.customer_id = c.customer_id\n     GROUP BY c.region\n     ORDER BY shipping_cost_percentage DESC",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0055",
+    "query_text": "What was total profit in 2012?",
+    "sql": "SELECT SUM(profit) as total_profit FROM spend_data.orders WHERE year = 2012",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0537",
+    "query_text": "Show me year-over-year sales growth by category",
+    "sql": "SELECT p.category, o.year, SUM(o.sales) as total_sales, \n             (SUM(o.sales) - LAG(SUM(o.sales)) OVER (PARTITION BY p.category ORDER BY o.year)) / NULLIF(LAG(SUM(o.sales)) OVER (PARTITION BY p.category ORDER BY o.year), 0) * 100 as yoy_growth\n     FROM spend_data.orders o\n     JOIN spend_data.products p ON o.product_id = p.product_id\n     GROUP BY p.category, o.year\n     ORDER BY p.category, o.year",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0099",
+    "query_text": "Show me products with price above $5000",
+    "sql": "SELECT sku, product_type, price FROM demand_data.products WHERE price > 5000 ORDER BY price DESC LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0040",
+    "query_text": "What was total sales in 2013?",
+    "sql": "SELECT SUM(sales) as total_sales FROM spend_data.orders WHERE year = 2013",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0402",
+    "query_text": "Show me products with negative profit",
+    "sql": "SELECT p.product_name, SUM(o.profit) as total_profit\n     FROM spend_data.orders o\n     JOIN spend_data.products p ON o.product_id = p.product_id\n     GROUP BY p.product_name\n     HAVING SUM(o.profit) < 0\n     ORDER BY total_profit ASC",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0365",
+    "query_text": "What is average discount by category?",
+    "sql": "SELECT p.category, AVG(o.discount) as average_discount\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.category",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0136",
+    "query_text": "What products are in the Office Supplies category?",
+    "sql": "SELECT product_name FROM spend_data.products WHERE category = 'Office Supplies'",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0452",
+    "query_text": "What is sales distribution by segment?",
+    "sql": "SELECT c.segment, SUM(o.sales) as total_sales\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.segment\n                         ORDER BY total_sales DESC",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0466",
+    "query_text": "What is total sales by segment?",
+    "sql": "SELECT c.segment, SUM(o.sales) as total_sales\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.segment",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0056",
+    "query_text": "What is total shipping cost for 2012?",
+    "sql": "SELECT SUM(shipping_cost) as total_shipping_cost FROM spend_data.orders WHERE year = 2012",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0234",
+    "query_text": "What is the average order value?",
+    "sql": "SELECT AVG(sales) as average_order_value FROM spend_data.orders",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0501",
+    "query_text": "Which products have declining sales over time?",
+    "sql": "SELECT p.product_name, o.year, SUM(o.sales) as total_sales\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.product_name, o.year\n                         HAVING COUNT(DISTINCT o.year) > 1\n                         ORDER BY p.product_name, o.year",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0291",
+    "query_text": "What is total cost of ownership by supplier?",
+    "sql": "SELECT s.supplier_name, SUM(sc.total_cost) as total_cost_of_ownership\n     FROM demand_data.supply_chain sc\n     JOIN demand_data.suppliers s ON sc.supplier_id = s.supplier_id\n     GROUP BY s.supplier_name\n     ORDER BY total_cost_of_ownership DESC\n     LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0073",
+    "query_text": "What is total order quantities?",
+    "sql": "SELECT SUM(order_quantities) as total_order_quantities FROM demand_data.sales",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0263",
+    "query_text": "What is sales by market and region?",
+    "sql": "SELECT c.market, c.region, SUM(o.sales) as total_sales\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.market, c.region\n                         ORDER BY c.market, c.region",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0050",
+    "query_text": "How many products are out of stock?",
+    "sql": "SELECT COUNT(*) as out_of_stock_count FROM demand_data.products WHERE stock_levels = 0",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0156",
+    "query_text": "What is the average discount?",
+    "sql": "SELECT AVG(discount) as average_discount FROM spend_data.orders",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0121",
+    "query_text": "Which products have stock below 10?",
+    "sql": "SELECT sku, product_type, stock_levels FROM demand_data.products WHERE stock_levels < 10 ORDER BY stock_levels ASC LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0041",
+    "query_text": "What was total quantity sold in 2014?",
+    "sql": "SELECT SUM(quantity) as total_quantity_sold FROM spend_data.orders WHERE year = 2014",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0457",
+    "query_text": "Show me top 10 customers by profit",
+    "sql": "SELECT c.customer_name, SUM(o.profit) as total_profit\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.customer_name\n                         ORDER BY total_profit DESC\n                         LIMIT 10",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0460",
+    "query_text": "Show me monthly sales trend for 2011",
+    "sql": "SELECT DATE_TRUNC('month', order_date) AS month, SUM(sales) AS total_sales\n     FROM spend_data.orders\n     WHERE year = 2011\n     GROUP BY DATE_TRUNC('month', order_date)\n     ORDER BY month ASC",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0002",
+    "query_text": "Which supplier is located in Chennai?",
+    "sql": "SELECT supplier_name, location FROM demand_data.suppliers WHERE location = 'Chennai' LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0021",
+    "query_text": "List all skincare products",
+    "sql": "SELECT sku, product_type, price, stock_levels, availability FROM demand_data.products WHERE product_type = 'skincare' LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0235",
+    "query_text": "What is average defect rate by supplier?",
+    "sql": "SELECT s.supplier_name, AVG(sc.defect_rate) as avg_defect_rate\n     FROM demand_data.supply_chain sc\n     JOIN demand_data.suppliers s ON sc.supplier_id = s.supplier_id\n     GROUP BY s.supplier_name\n     ORDER BY avg_defect_rate ASC\n     LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0454",
+    "query_text": "Which sub-category has highest sales?",
+    "sql": "SELECT p.sub_category, SUM(o.sales) as total_sales\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.sub_category\n                         ORDER BY total_sales DESC\n                         LIMIT 1",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0440",
+    "query_text": "Which region has highest profit?",
+    "sql": "SELECT c.region, SUM(o.profit) as total_profit\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.region\n                         ORDER BY total_profit DESC\n                         LIMIT 1",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0259",
+    "query_text": "What is total sales by segment?",
+    "sql": "SELECT c.segment, SUM(o.sales) as total_sales\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.segment",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0327",
+    "query_text": "What are the top 5 products by sales?",
+    "sql": "SELECT p.product_name, SUM(o.sales) as total_sales\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.product_name\n                         ORDER BY total_sales DESC\n                         LIMIT 5",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0096",
+    "query_text": "What is average shipping cost?",
+    "sql": "SELECT AVG(shipping_cost) as average_shipping_cost FROM demand_data.supply_chain",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0507",
+    "query_text": "What is customer lifetime value by segment?",
+    "sql": "SELECT c.segment, c.customer_name, SUM(o.sales) AS lifetime_value\n     FROM spend_data.orders o\n     JOIN spend_data.customers c ON o.customer_id = c.customer_id\n     GROUP BY c.segment, c.customer_name\n     ORDER BY c.segment, lifetime_value DESC\n     LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0241",
+    "query_text": "What is sales by market and region?",
+    "sql": "SELECT c.market, c.region, SUM(o.sales) as total_sales\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.market, c.region\n                         ORDER BY c.market, c.region",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0042",
+    "query_text": "What is total manufacturing cost?",
+    "sql": "SELECT SUM(manufacturing_cost) as total_manufacturing_cost FROM demand_data.supply_chain",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0268",
+    "query_text": "Show me products with low stock and high demand",
+    "sql": "SELECT p.sku, p.product_type, p.stock_levels, s.products_sold \n     FROM demand_data.products p\n     JOIN demand_data.sales s ON p.sku = s.sku\n     WHERE p.stock_levels < 20\n     ORDER BY s.products_sold DESC\n     LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0196",
+    "query_text": "What was total profit in 2013?",
+    "sql": "SELECT SUM(profit) as total_profit FROM spend_data.orders WHERE year = 2013",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0088",
+    "query_text": "What is average shipping cost?",
+    "sql": "SELECT AVG(shipping_cost) as average_shipping_cost FROM demand_data.supply_chain",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0328",
+    "query_text": "Which region has highest profit?",
+    "sql": "SELECT c.region, SUM(o.profit) as total_profit\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.region\n                         ORDER BY total_profit DESC\n                         LIMIT 1",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0069",
+    "query_text": "What was total quantity sold in 2012?",
+    "sql": "SELECT SUM(quantity) as total_quantity_sold FROM spend_data.orders WHERE year = 2012",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0099",
+    "query_text": "What products are in the Furniture category?",
+    "sql": "SELECT product_name FROM spend_data.products WHERE category = 'Furniture'",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0180",
+    "query_text": "What was total sales in 2013?",
+    "sql": "SELECT SUM(sales) as total_sales FROM spend_data.orders WHERE year = 2013",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0238",
+    "query_text": "Show me all orders from US market",
+    "sql": "SELECT * \nFROM spend_data.orders o\nJOIN spend_data.customers c ON o.customer_id = c.customer_id\nWHERE c.market = 'US' \nLIMIT 100",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0240",
+    "query_text": "Which products need reordering?",
+    "sql": "SELECT sku, product_type, stock_levels, availability FROM demand_data.products WHERE stock_levels < 10 ORDER BY stock_levels ASC LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0006",
+    "query_text": "Which products have stock below 20?",
+    "sql": "SELECT sku, product_type, stock_levels FROM demand_data.products WHERE stock_levels < 20 ORDER BY stock_levels ASC LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0267",
+    "query_text": "Which sub-category has highest sales?",
+    "sql": "SELECT p.sub_category, SUM(o.sales) as total_sales\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.sub_category\n                         ORDER BY total_sales DESC\n                         LIMIT 1",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0285",
+    "query_text": "Show me top 10 customers by profit",
+    "sql": "SELECT c.customer_name, SUM(o.profit) as total_profit\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.customer_name\n                         ORDER BY total_profit DESC\n                         LIMIT 10",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0215",
+    "query_text": "Which supplier has shortest lead time?",
+    "sql": "SELECT supplier_name, location, MIN(lead_time) as shortest_lead_time FROM demand_data.suppliers GROUP BY supplier_name, location ORDER BY shortest_lead_time ASC LIMIT 1",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0388",
+    "query_text": "Which category has most orders?",
+    "sql": "SELECT p.category, COUNT(o.order_id) as total_orders\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.category\n                         ORDER BY total_orders DESC\n                         LIMIT 1",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0273",
+    "query_text": "Show me products with negative profit",
+    "sql": "SELECT p.product_name, SUM(o.profit) as total_profit\n     FROM spend_data.orders o\n     JOIN spend_data.products p ON o.product_id = p.product_id\n     GROUP BY p.product_name\n     HAVING SUM(o.profit) < 0\n     ORDER BY total_profit ASC",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0334",
+    "query_text": "Which category has most orders?",
+    "sql": "SELECT p.category, COUNT(o.order_id) as total_orders\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.category\n                         ORDER BY total_orders DESC\n                         LIMIT 1",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0162",
+    "query_text": "What is the average order value?",
+    "sql": "SELECT AVG(sales) as average_order_value FROM spend_data.orders",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0221",
+    "query_text": "Which products have highest defect rate?",
+    "sql": "SELECT sku, defect_rate FROM demand_data.supply_chain ORDER BY defect_rate DESC LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0146",
+    "query_text": "How many orders were placed in 2013?",
+    "sql": "SELECT COUNT(order_id) as total_orders FROM spend_data.orders WHERE year = 2013",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0469",
+    "query_text": "Which region has highest profit?",
+    "sql": "SELECT c.region, SUM(o.profit) as total_profit\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.region\n                         ORDER BY total_profit DESC\n                         LIMIT 1",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0153",
+    "query_text": "Show me all products with high defect rates",
+    "sql": "SELECT p.sku, p.product_type, sc.defect_rate \n     FROM demand_data.products p\n     JOIN demand_data.supply_chain sc ON p.sku = sc.sku\n     WHERE sc.defect_rate > 0.1\n     ORDER BY sc.defect_rate DESC\n     LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0313",
+    "query_text": "What are the top 5 products by sales?",
+    "sql": "SELECT p.product_name, SUM(o.sales) as total_sales\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.product_name\n                         ORDER BY total_sales DESC\n                         LIMIT 5",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0036",
+    "query_text": "Show me products with price above $5000",
+    "sql": "SELECT sku, product_type, price FROM demand_data.products WHERE price > 5000 ORDER BY price DESC LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0520",
+    "query_text": "Which products have declining sales over time?",
+    "sql": "SELECT p.product_name, o.year, SUM(o.sales) as total_sales\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.product_name, o.year\n                         HAVING COUNT(DISTINCT o.year) > 1\n                         ORDER BY p.product_name, o.year",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0379",
+    "query_text": "Which products have highest profit margin?",
+    "sql": "SELECT p.product_name, (SUM(o.profit) / NULLIF(SUM(o.sales), 0)) * 100 AS profit_margin\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.product_name\n                         ORDER BY profit_margin DESC\n                         LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0296",
+    "query_text": "Which products have high demand but low stock from Supplier 2?",
+    "sql": "SELECT p.sku, p.product_type, p.stock_levels, s.products_sold, sc.supplier_id\n     FROM demand_data.products p\n     JOIN demand_data.sales s ON p.sku = s.sku\n     JOIN demand_data.supply_chain sc ON p.sku = sc.sku\n     WHERE sc.supplier_id = 2 AND p.stock_levels < 20\n     ORDER BY s.products_sold DESC\n     LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0472",
+    "query_text": "What is average shipping cost by ship mode?",
+    "sql": "SELECT ship_mode, AVG(shipping_cost) as average_shipping_cost FROM spend_data.orders GROUP BY ship_mode",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0290",
+    "query_text": "Show me top 10 customers by profit",
+    "sql": "SELECT c.customer_name, SUM(o.profit) as total_profit\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.customer_name\n                         ORDER BY total_profit DESC\n                         LIMIT 10",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0282",
+    "query_text": "Show me monthly sales trend for 2011",
+    "sql": "SELECT DATE_TRUNC('month', order_date) AS month, SUM(sales) AS total_sales\n     FROM spend_data.orders\n     WHERE year = 2011\n     GROUP BY DATE_TRUNC('month', order_date)\n     ORDER BY month;",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0215",
+    "query_text": "What is the average discount?",
+    "sql": "SELECT AVG(discount) as average_discount FROM spend_data.orders",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0528",
+    "query_text": "Which customers have highest order frequency?",
+    "sql": "SELECT c.customer_name, COUNT(o.order_id) as order_frequency\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.customer_name\n                         ORDER BY order_frequency DESC\n                         LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0267",
+    "query_text": "Which products have highest revenue?",
+    "sql": "SELECT p.sku, p.product_type, SUM(s.revenue_generated) as total_revenue\n     FROM demand_data.products p\n     JOIN demand_data.sales s ON p.sku = s.sku\n     GROUP BY p.sku, p.product_type\n     ORDER BY total_revenue DESC\n     LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0592",
+    "query_text": "What is customer lifetime value by segment?",
+    "sql": "SELECT c.segment, c.customer_name, SUM(o.sales) as lifetime_value\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.segment, c.customer_name\n                         ORDER BY c.segment, lifetime_value DESC",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0090",
+    "query_text": "Show me all Standard Class shipments",
+    "sql": "SELECT * FROM spend_data.orders WHERE ship_mode = 'Standard Class' LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0566",
+    "query_text": "What is the shipping cost as percentage of sales by region?",
+    "sql": "SELECT c.region, (SUM(o.shipping_cost) / SUM(o.sales)) * 100 AS shipping_cost_percentage\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.region",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0153",
+    "query_text": "How many orders were placed in 2013?",
+    "sql": "SELECT COUNT(order_id) as total_orders FROM spend_data.orders WHERE year = 2013",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0261",
+    "query_text": "Which customers spent the most?",
+    "sql": "SELECT c.customer_name, SUM(o.sales) as total_spend\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.customer_name\n                         ORDER BY total_spend DESC\n                         LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0438",
+    "query_text": "Which category has most orders?",
+    "sql": "SELECT p.category, COUNT(o.order_id) as total_orders\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.category\n                         ORDER BY total_orders DESC\n                         LIMIT 1",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0175",
+    "query_text": "What is average stock level by product type?",
+    "sql": "SELECT product_type, AVG(stock_levels) as average_stock_level FROM demand_data.products GROUP BY product_type ORDER BY average_stock_level DESC LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0183",
+    "query_text": "What is the average discount?",
+    "sql": "SELECT AVG(discount) as average_discount FROM spend_data.orders",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0246",
+    "query_text": "What is average defect rate by supplier?",
+    "sql": "SELECT s.supplier_name, AVG(sc.defect_rate) as avg_defect_rate\n     FROM demand_data.supply_chain sc\n     JOIN demand_data.suppliers s ON sc.supplier_id = s.supplier_id\n     GROUP BY s.supplier_name\n     ORDER BY avg_defect_rate ASC\n     LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0224",
+    "query_text": "What is total revenue by product type?",
+    "sql": "SELECT p.product_type, SUM(s.revenue_generated) as total_revenue\n     FROM demand_data.sales s\n     JOIN demand_data.products p ON s.sku = p.sku\n     GROUP BY p.product_type\n     ORDER BY total_revenue DESC",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0584",
+    "query_text": "What is quarterly sales trend by market?",
+    "sql": "SELECT o.year, EXTRACT(quarter FROM o.order_date) AS quarter, c.market, SUM(o.sales) AS total_sales\n     FROM spend_data.orders o\n     JOIN spend_data.customers c ON o.customer_id = c.customer_id\n     GROUP BY o.year, quarter, c.market\n     ORDER BY o.year, quarter, c.market",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0394",
+    "query_text": "Which products have highest profit margin?",
+    "sql": "SELECT p.product_name, (SUM(o.profit) / SUM(o.sales)) * 100 AS profit_margin\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.product_name\n                         ORDER BY profit_margin DESC\n                         LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0356",
+    "query_text": "Which products have highest profit margin?",
+    "sql": "SELECT p.product_name, SUM(o.profit) / SUM(o.sales) AS profit_margin\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.product_name\n                         ORDER BY profit_margin DESC\n                         LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0077",
+    "query_text": "List all customers from East region",
+    "sql": "SELECT customer_id, customer_name, segment, state, country, market, region \n     FROM spend_data.customers \n     WHERE region = 'East'",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0124",
+    "query_text": "Show me all products with high defect rates",
+    "sql": "SELECT p.sku, p.product_type, p.price, p.stock_levels, sc.defect_rate \nFROM demand_data.products p\nJOIN demand_data.supply_chain sc ON p.sku = sc.sku\nWHERE sc.defect_rate > 0.1\nORDER BY sc.defect_rate DESC\nLIMIT 100",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0072",
+    "query_text": "What is average shipping cost?",
+    "sql": "SELECT AVG(shipping_cost) as average_shipping_cost FROM demand_data.supply_chain",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0249",
+    "query_text": "Which products have highest profit margin?",
+    "sql": "SELECT p.product_name, SUM(o.profit) / SUM(o.sales) AS profit_margin\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.product_name\n                         ORDER BY profit_margin DESC\n                         LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0464",
+    "query_text": "What is total sales by segment?",
+    "sql": "SELECT c.segment, SUM(o.sales) as total_sales\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.segment",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0353",
+    "query_text": "What is average shipping cost by ship mode?",
+    "sql": "SELECT ship_mode, AVG(shipping_cost) as average_shipping_cost FROM spend_data.orders GROUP BY ship_mode",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0250",
+    "query_text": "Which category has most orders?",
+    "sql": "SELECT p.category, COUNT(o.order_id) as total_orders\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.category\n                         ORDER BY total_orders DESC\n                         LIMIT 1",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0519",
+    "query_text": "Show me top products by profit margin in each category",
+    "sql": "SELECT p.category, p.product_name, SUM(o.profit) / NULLIF(SUM(o.sales), 0) AS profit_margin\n                         FROM spend_data.orders o\n                         JOIN spend_data.products p ON o.product_id = p.product_id\n                         GROUP BY p.category, p.product_name\n                         ORDER BY p.category, profit_margin DESC\n                         LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0351",
+    "query_text": "What is average shipping cost by ship mode?",
+    "sql": "SELECT ship_mode, AVG(shipping_cost) as average_shipping_cost FROM spend_data.orders GROUP BY ship_mode",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0102",
+    "query_text": "What is total shipping cost for 2013?",
+    "sql": "SELECT SUM(shipping_cost) as total_shipping_cost FROM spend_data.orders WHERE year = 2013",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0158",
+    "query_text": "What is the average discount?",
+    "sql": "SELECT AVG(discount) as average_discount FROM spend_data.orders",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0206",
+    "query_text": "Which products have highest revenue?",
+    "sql": "SELECT p.sku, p.product_type, SUM(s.revenue_generated) as total_revenue\n     FROM demand_data.products p\n     JOIN demand_data.sales s ON p.sku = s.sku\n     GROUP BY p.sku, p.product_type\n     ORDER BY total_revenue DESC\n     LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0170",
+    "query_text": "Show me orders with high priority",
+    "sql": "SELECT * FROM spend_data.orders WHERE order_priority = 'High' LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0306",
+    "query_text": "Show me supplier performance score based on lead time and defect rate",
+    "sql": "SELECT s.supplier_name, s.location, AVG(sc.lead_time) AS avg_lead_time, AVG(sc.defect_rate) AS avg_defect_rate, \n             (1.0 / NULLIF(AVG(sc.lead_time), 0)) * (1.0 - AVG(sc.defect_rate)) AS performance_score\n     FROM demand_data.suppliers s\n     JOIN demand_data.supply_chain sc ON s.supplier_id = sc.supplier_id\n     GROUP BY s.supplier_name, s.location\n     ORDER BY performance_score DESC\n     LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0529",
+    "query_text": "Which customers in LATAM market had highest spend in 2011 with orders above $5000?",
+    "sql": "SELECT c.customer_name, SUM(o.sales) as total_spend\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         WHERE c.market = 'LATAM' AND o.year = 2011 AND o.sales > 5000\n                         GROUP BY c.customer_name\n                         ORDER BY total_spend DESC\n                         LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0575",
+    "query_text": "Which customers in Africa market had highest spend in 2014 with orders above $100?",
+    "sql": "SELECT c.customer_name, SUM(o.sales) as total_spend\n     FROM spend_data.orders o\n     JOIN spend_data.customers c ON o.customer_id = c.customer_id\n     WHERE c.market = 'Africa' AND o.year = 2014 AND o.sales > 100\n     GROUP BY c.customer_name\n     ORDER BY total_spend DESC\n     LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0075",
+    "query_text": "What is total order quantities?",
+    "sql": "SELECT SUM(order_quantities) as total_order_quantities FROM demand_data.sales",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0315",
+    "query_text": "Which supplier-product combinations are most efficient?",
+    "sql": "SELECT sc.sku, s.supplier_name, sc.total_cost, sc.lead_time, sc.defect_rate\n     FROM demand_data.supply_chain sc\n     JOIN demand_data.suppliers s ON sc.supplier_id = s.supplier_id\n     ORDER BY sc.total_cost ASC, sc.lead_time ASC, sc.defect_rate ASC\n     LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0056",
+    "query_text": "Which supplier is located in Delhi?",
+    "sql": "SELECT supplier_name, location FROM demand_data.suppliers WHERE location = 'Delhi' LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0303",
+    "query_text": "What is optimal reorder quantity for each product?",
+    "sql": "SELECT p.sku, p.product_type, p.stock_levels, p.availability, s.order_quantities, \n            (p.stock_levels + s.order_quantities - p.availability) AS optimal_reorder_quantity\n     FROM demand_data.products p\n     JOIN demand_data.sales s ON p.sku = s.sku\n     WHERE p.availability < p.stock_levels\n     ORDER BY p.sku\n     LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0320",
+    "query_text": "Which region has highest profit?",
+    "sql": "SELECT c.region, SUM(o.profit) as total_profit\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.region\n                         ORDER BY total_profit DESC\n                         LIMIT 1",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0261",
+    "query_text": "What is production volume by supplier?",
+    "sql": "SELECT s.supplier_name, sc.sku, SUM(sc.production_volume) as total_production_volume\n     FROM demand_data.supply_chain sc\n     JOIN demand_data.suppliers s ON sc.supplier_id = s.supplier_id\n     GROUP BY s.supplier_name, sc.sku\n     ORDER BY total_production_volume DESC\n     LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0206",
+    "query_text": "What is the average order value?",
+    "sql": "SELECT AVG(sales) as average_order_value FROM spend_data.orders",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0181",
+    "query_text": "What is total revenue by product type?",
+    "sql": "SELECT p.product_type, SUM(s.revenue_generated) as total_revenue\n     FROM demand_data.sales s\n     JOIN demand_data.products p ON s.sku = p.sku\n     GROUP BY p.product_type\n     ORDER BY total_revenue DESC",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0446",
+    "query_text": "What is sales distribution by segment?",
+    "sql": "SELECT c.segment, SUM(o.sales) as total_sales\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.segment\n                         ORDER BY total_sales DESC",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0020",
+    "query_text": "Which supplier is located in Kolkata?",
+    "sql": "SELECT supplier_name, location FROM demand_data.suppliers WHERE location = 'Kolkata' LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0074",
+    "query_text": "What is the average discount?",
+    "sql": "SELECT AVG(discount) as average_discount FROM spend_data.orders",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0336",
+    "query_text": "Which supplier-product combinations are most efficient?",
+    "sql": "SELECT sc.sku, s.supplier_name, sc.total_cost, sc.lead_time, sc.defect_rate\n     FROM demand_data.supply_chain sc\n     JOIN demand_data.suppliers s ON sc.supplier_id = s.supplier_id\n     ORDER BY sc.total_cost ASC, sc.lead_time ASC, sc.defect_rate ASC\n     LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0046",
+    "query_text": "How many orders were placed in 2012?",
+    "sql": "SELECT COUNT(order_id) as total_orders FROM spend_data.orders WHERE year = 2012",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0054",
+    "query_text": "What is average shipping cost?",
+    "sql": "SELECT AVG(shipping_cost) as average_shipping_cost FROM demand_data.supply_chain",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0024",
+    "query_text": "What is average lead time?",
+    "sql": "SELECT AVG(lead_time) as average_lead_time FROM demand_data.suppliers",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0154",
+    "query_text": "What is average price of products?",
+    "sql": "SELECT AVG(price) as average_price FROM demand_data.products",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0027",
+    "query_text": "List suppliers by location",
+    "sql": "SELECT location, supplier_name FROM demand_data.suppliers GROUP BY location, supplier_name ORDER BY location ASC",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0322",
+    "query_text": "What is cost breakdown analysis by product?",
+    "sql": "SELECT p.sku, p.product_type, sc.manufacturing_cost, sc.shipping_cost, sc.total_cost\n     FROM demand_data.products p\n     JOIN demand_data.supply_chain sc ON p.sku = sc.sku\n     ORDER BY sc.total_cost DESC\n     LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0260",
+    "query_text": "Which products have highest revenue?",
+    "sql": "SELECT p.sku, p.product_type, SUM(s.revenue_generated) as total_revenue\n     FROM demand_data.products p\n     JOIN demand_data.sales s ON p.sku = s.sku\n     GROUP BY p.sku, p.product_type\n     ORDER BY total_revenue DESC\n     LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0138",
+    "query_text": "What is average shipping cost?",
+    "sql": "SELECT AVG(shipping_cost) as average_shipping_cost FROM demand_data.supply_chain",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0431",
+    "query_text": "Show me monthly sales trend for 2013",
+    "sql": "SELECT DATE_TRUNC('month', order_date) AS month, SUM(sales) AS total_sales\n     FROM spend_data.orders\n     WHERE year = 2013\n     GROUP BY month\n     ORDER BY month ASC",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0017",
+    "query_text": "What is total shipping cost for 2013?",
+    "sql": "SELECT SUM(shipping_cost) as total_shipping_cost FROM spend_data.orders WHERE year = 2013",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0019",
+    "query_text": "What is average shipping cost?",
+    "sql": "SELECT AVG(shipping_cost) as average_shipping_cost FROM demand_data.supply_chain",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0117",
+    "query_text": "How many products are in Office Supplies?",
+    "sql": "SELECT COUNT(*) as total_products FROM spend_data.products WHERE category = 'Office Supplies'",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0084",
+    "query_text": "What products are in the Furniture category?",
+    "sql": "SELECT product_name FROM spend_data.products WHERE category = 'Furniture'",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0341",
+    "query_text": "What is total cost of ownership by supplier?",
+    "sql": "SELECT s.supplier_name, SUM(sc.total_cost) as total_cost_of_ownership\n     FROM demand_data.supply_chain sc\n     JOIN demand_data.suppliers s ON sc.supplier_id = s.supplier_id\n     GROUP BY s.supplier_name\n     ORDER BY total_cost_of_ownership DESC\n     LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "SPEND-0223",
+    "query_text": "What was total sales in 2014?",
+    "sql": "SELECT SUM(sales) as total_sales FROM spend_data.orders WHERE year = 2014",
+    "complexity": "simple",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0598",
+    "query_text": "Which regions have highest sales per customer?",
+    "sql": "SELECT c.region, SUM(o.sales) / COUNT(DISTINCT c.customer_id) as sales_per_customer\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.region\n                         ORDER BY sales_per_customer DESC\n                         LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "DEMAND-0048",
+    "query_text": "What is average shipping cost?",
+    "sql": "SELECT AVG(shipping_cost) as average_shipping_cost FROM demand_data.supply_chain",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0068",
+    "query_text": "Show me products with availability above 75%",
+    "sql": "SELECT sku, product_type, price, availability, stock_levels FROM demand_data.products WHERE availability > 75 ORDER BY availability DESC LIMIT 100",
+    "complexity": "simple",
+    "agent_type": "demand"
+  },
+  {
+    "query_id": "DEMAND-0305",
+    "query_text": "Which products have best revenue per stock unit?",
+    "sql": "SELECT p.sku, p.product_type, p.stock_levels, SUM(s.revenue_generated) / p.stock_levels AS revenue_per_stock_unit\n     FROM demand_data.products p\n     JOIN demand_data.sales s ON p.sku = s.sku\n     WHERE p.stock_levels > 0\n     GROUP BY p.sku, p.product_type, p.stock_levels\n     ORDER BY revenue_per_stock_unit DESC\n     LIMIT 100",
+    "complexity": "complex",
+    "agent_type": "demand"
+  }
+]

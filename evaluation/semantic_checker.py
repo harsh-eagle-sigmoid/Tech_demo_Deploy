@@ -1,0 +1,203 @@
+"""
+Semantic Checker for SQL Comparison
+Step 3 of Evaluation Framework
+"""
+import re
+from typing import Tuple
+from loguru import logger
+
+
+class SemanticChecker:
+    """Compares generated SQL with ground truth SQL semantically"""
+
+    def normalize_sql(self, sql: str) -> str:
+        """
+        Normalize SQL for comparison
+
+        Args:
+            sql: SQL query to normalize
+
+        Returns:
+            Normalized SQL
+        """
+        # Remove extra whitespace
+        sql = re.sub(r'\s+', ' ', sql)
+
+        # Convert to lowercase
+        sql = sql.lower()
+
+        # Remove trailing semicolon
+        sql = sql.rstrip(';')
+
+        # Remove leading/trailing whitespace
+        sql = sql.strip()
+
+        return sql
+
+    def extract_components(self, sql: str) -> dict:
+        """
+        Extract key components from SQL query
+
+        Args:
+            sql: SQL query
+
+        Returns:
+            Dict with extracted components
+        """
+        components = {
+            "select": [],
+            "from": [],
+            "where": [],
+            "group_by": [],
+            "order_by": [],
+            "limit": None,
+            "joins": []
+        }
+
+        sql_normalized = self.normalize_sql(sql)
+
+        # Extract SELECT clause
+        select_match = re.search(r'select\s+(.*?)\s+from', sql_normalized, re.IGNORECASE)
+        if select_match:
+            select_clause = select_match.group(1)
+            components["select"] = [col.strip() for col in select_clause.split(',')]
+
+        # Extract FROM clause
+        from_match = re.search(r'from\s+([\w\.]+)', sql_normalized, re.IGNORECASE)
+        if from_match:
+            components["from"] = [from_match.group(1)]
+
+        # Extract WHERE clause
+        where_match = re.search(r'where\s+(.*?)(?:\s+group\s+by|\s+order\s+by|\s+limit|$)', sql_normalized, re.IGNORECASE)
+        if where_match:
+            components["where"] = [where_match.group(1).strip()]
+
+        # Extract GROUP BY
+        group_match = re.search(r'group\s+by\s+(.*?)(?:\s+order\s+by|\s+limit|$)', sql_normalized, re.IGNORECASE)
+        if group_match:
+            components["group_by"] = [col.strip() for col in group_match.group(1).split(',')]
+
+        # Extract ORDER BY
+        order_match = re.search(r'order\s+by\s+(.*?)(?:\s+limit|$)', sql_normalized, re.IGNORECASE)
+        if order_match:
+            components["order_by"] = [col.strip() for col in order_match.group(1).split(',')]
+
+        # Extract LIMIT
+        limit_match = re.search(r'limit\s+(\d+)', sql_normalized, re.IGNORECASE)
+        if limit_match:
+            components["limit"] = limit_match.group(1)
+
+        # Extract JOINs
+        join_matches = re.findall(r'(inner|left|right|full)?\s*join\s+([\w\.]+)', sql_normalized, re.IGNORECASE)
+        if join_matches:
+            components["joins"] = [match[1] for match in join_matches]
+
+        return components
+
+    def calculate_similarity(self, sql1: str, sql2: str) -> float:
+        """
+        Calculate semantic similarity between two SQL queries
+
+        Args:
+            sql1: First SQL query
+            sql2: Second SQL query
+
+        Returns:
+            Similarity score (0.0 to 1.0)
+        """
+        # Normalize both queries
+        norm1 = self.normalize_sql(sql1)
+        norm2 = self.normalize_sql(sql2)
+
+        # Exact match
+        if norm1 == norm2:
+            return 1.0
+
+        # Extract components
+        comp1 = self.extract_components(sql1)
+        comp2 = self.extract_components(sql2)
+
+        # Calculate component-wise similarity
+        scores = []
+
+        # SELECT clause (40% weight)
+        select_score = self._list_similarity(comp1["select"], comp2["select"])
+        scores.append(("select", select_score, 0.4))
+
+        # FROM clause (15% weight)
+        from_score = self._list_similarity(comp1["from"], comp2["from"])
+        scores.append(("from", from_score, 0.15))
+
+        # WHERE clause (20% weight)
+        where_score = self._list_similarity(comp1["where"], comp2["where"])
+        scores.append(("where", where_score, 0.2))
+
+        # GROUP BY (10% weight)
+        group_score = self._list_similarity(comp1["group_by"], comp2["group_by"])
+        scores.append(("group_by", group_score, 0.1))
+
+        # ORDER BY (10% weight)
+        order_score = self._list_similarity(comp1["order_by"], comp2["order_by"])
+        scores.append(("order_by", order_score, 0.1))
+
+        # JOINs (5% weight)
+        join_score = self._list_similarity(comp1["joins"], comp2["joins"])
+        scores.append(("joins", join_score, 0.05))
+
+        # Calculate weighted average
+        total_score = sum(score * weight for _, score, weight in scores)
+
+        return total_score
+
+    def _list_similarity(self, list1: list, list2: list) -> float:
+        """
+        Calculate similarity between two lists
+
+        Args:
+            list1: First list
+            list2: Second list
+
+        Returns:
+            Similarity score (0.0 to 1.0)
+        """
+        if not list1 and not list2:
+            return 1.0
+
+        if not list1 or not list2:
+            return 0.0
+
+        # Normalize items
+        set1 = set(item.strip() for item in list1)
+        set2 = set(item.strip() for item in list2)
+
+        # Calculate Jaccard similarity
+        intersection = len(set1 & set2)
+        union = len(set1 | set2)
+
+        if union == 0:
+            return 0.0
+
+        return intersection / union
+
+    def check_semantic_equivalence(self, generated_sql: str, ground_truth_sql: str) -> dict:
+        """
+        Check semantic equivalence between generated and ground truth SQL
+
+        Args:
+            generated_sql: SQL generated by agent
+            ground_truth_sql: Expected SQL from ground truth
+
+        Returns:
+            Dict with semantic check results
+        """
+        similarity_score = self.calculate_similarity(generated_sql, ground_truth_sql)
+
+        result = {
+            "similarity_score": similarity_score,
+            "is_equivalent": similarity_score >= 0.8,
+            "generated_normalized": self.normalize_sql(generated_sql),
+            "ground_truth_normalized": self.normalize_sql(ground_truth_sql),
+            "components_match": similarity_score >= 0.9
+        }
+
+        return result
