@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { fetchDrift } from './api';
 
 const COLORS = { normal: '#3ecf8e', medium: '#f7b731', high: '#ff6b6b' };
@@ -15,7 +15,12 @@ export default function DriftPanel() {
       .catch(e => setError(e.message));
   };
 
-  useEffect(() => { load(filter); }, [filter]);
+  // Auto-refresh every 10 seconds
+  useEffect(() => {
+    load(filter);  // Initial load
+    const interval = setInterval(() => load(filter), 10000);
+    return () => clearInterval(interval);
+  }, [filter]);
 
   if (error) return <p className="error-msg">{error}</p>;
   if (!data)  return <p className="loading">Loading drift data...</p>;

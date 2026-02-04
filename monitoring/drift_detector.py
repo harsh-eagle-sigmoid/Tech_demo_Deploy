@@ -18,7 +18,7 @@ from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
 import os
 
-load_dotenv(dotenv_path="/home/lenovo/Desktop/New_tech_demo/.env")
+load_dotenv()
 
 DB_HOST     = os.getenv("DB_HOST", "localhost")
 DB_PORT     = int(os.getenv("DB_PORT", "5432"))
@@ -111,7 +111,7 @@ class DriftDetector:
             if row is None:
                 return None
             vec = row[0]
-            # pgvector returns "[0.1,0.2,...]" string — parse to list of floats
+        
             if isinstance(vec, str):
                 vec = [float(x) for x in vec.strip("[]").split(",")]
             return vec

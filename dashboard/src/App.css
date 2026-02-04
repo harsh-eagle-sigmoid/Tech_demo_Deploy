@@ -127,3 +127,80 @@ body {
   border-radius: 6px;
   color: #c8d6e5 !important;
 }
+
+/* ── Auth styles ─────────────────────────────────────────────────────────── */
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.auth-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-name {
+  font-size: 0.82rem;
+  color: #c8d6e5;
+}
+
+.btn-login, .btn-logout {
+  background: #4c9eff;
+  border: none;
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 5px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-login:hover {
+  background: #3a8de8;
+}
+
+.btn-logout {
+  background: transparent;
+  border: 1px solid #ff6b6b;
+  color: #ff6b6b;
+}
+
+.btn-logout:hover {
+  background: #ff6b6b22;
+}
+
+.auth-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: #0f1420;
+}
+
+.auth-required {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  text-align: center;
+  gap: 16px;
+}
+
+.auth-required h2 {
+  color: #fff;
+  font-size: 1.4rem;
+}
+
+.auth-required p {
+  color: #7a8fa3;
+  max-width: 400px;
+}
+
+.auth-status {
+  font-size: 0.8rem;
+  color: #7a8fa3;
+}

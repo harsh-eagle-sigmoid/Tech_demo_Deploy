@@ -50,6 +50,14 @@ class Settings(BaseSettings):
     ALERT_SLACK_ENABLED: bool = False
     ALERT_SLACK_WEBHOOK_URL: Optional[str] = None
 
+    # AWS Configuration (for SES/SNS Alerts)
+    AWS_ACCESS_KEY_ID: str = ""
+    AWS_SECRET_ACCESS_KEY: str = ""
+    AWS_REGION: str = "us-east-1"
+    AWS_SES_SENDER_EMAIL: str = ""
+    AWS_SNS_TOPIC_ARN: Optional[str] = None
+    ALERT_RECIPIENT_EMAILS: str = ""  # Comma-separated list
+
     # Evaluation Configuration
     EVALUATION_THRESHOLD: float = 0.7
     DRIFT_HIGH_THRESHOLD: float = 0.5
@@ -58,6 +66,23 @@ class Settings(BaseSettings):
     # Embedding Configuration
     EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
     EMBEDDING_DIMENSION: int = 384
+
+    # Azure AD Authentication Configuration
+    AZURE_AD_TENANT_ID: str = ""
+    AZURE_AD_CLIENT_ID: str = ""
+    AZURE_AD_CLIENT_SECRET: str = ""
+    AZURE_AD_AUDIENCE: str = ""
+    AUTH_ENABLED: bool = False
+
+    @property
+    def azure_ad_authority(self) -> str:
+        """Get Azure AD authority URL"""
+        return f"https://login.microsoftonline.com/{self.AZURE_AD_TENANT_ID}"
+
+    @property
+    def azure_ad_jwks_url(self) -> str:
+        """Get Azure AD JWKS URL for token validation"""
+        return f"https://login.microsoftonline.com/{self.AZURE_AD_TENANT_ID}/discovery/v2.0/keys"
 
     @property
     def database_url(self) -> str:

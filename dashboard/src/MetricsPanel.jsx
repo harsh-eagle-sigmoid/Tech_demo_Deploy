@@ -6,10 +6,12 @@ export default function MetricsPanel() {
   const [data, setData]   = useState(null);
   const [error, setError] = useState(null);
 
+  // Auto-refresh every 10 seconds
   useEffect(() => {
-    fetchMetrics()
-      .then(setData)
-      .catch(e => setError(e.message));
+    const load = () => fetchMetrics().then(setData).catch(e => setError(e.message));
+    load();  // Initial load
+    const interval = setInterval(load, 10000);  // Poll every 10s
+    return () => clearInterval(interval);
   }, []);
 
   if (error) return <p className="error-msg">{error}</p>;

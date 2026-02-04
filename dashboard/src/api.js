@@ -2,9 +2,30 @@ import axios from 'axios';
 
 const BASE = '/api/v1';
 
-export const fetchHealth  = () => axios.get('/health').then(r => r.data);
-export const fetchMetrics = () => axios.get(`${BASE}/metrics`).then(r => r.data);
-export const fetchDrift   = (agentType) => axios.get(`${BASE}/drift`, { params: agentType ? { agent_type: agentType } : {} }).then(r => r.data);
-export const fetchErrors  = (category)  => axios.get(`${BASE}/errors`, { params: category ? { category } : {} }).then(r => r.data);
-export const fetchErrorsByCategory = (category) => axios.get(`${BASE}/errors/${category}`).then(r => r.data);
-export const sendQuery    = (query, agentType) => axios.post(`${BASE}/query`, { query, agent_type: agentType }).then(r => r.data);
+// Create axios instance with interceptors
+const api = axios.create();
+
+// Token storage (set from AuthProvider)
+let accessToken = null;
+
+export const setAccessToken = (token) => {
+  accessToken = token;
+};
+
+// Add auth header to requests when token is available
+api.interceptors.request.use((config) => {
+  if (accessToken) {
+    config.headers.Authorization = `Bearer ${accessToken}`;
+  }
+  return config;
+});
+
+// API calls
+export const fetchHealth = () => api.get('/health').then(r => r.data);
+export const fetchMetrics = () => api.get(`${BASE}/metrics`).then(r => r.data);
+export const fetchDrift = (agentType) => api.get(`${BASE}/drift`, { params: agentType ? { agent_type: agentType } : {} }).then(r => r.data);
+export const fetchErrors = (category) => api.get(`${BASE}/errors`, { params: category ? { category } : {} }).then(r => r.data);
+export const fetchErrorsByCategory = (category) => api.get(`${BASE}/errors/${category}`).then(r => r.data);
+export const sendQuery = (query, agentType) => api.post(`${BASE}/query`, { query, agent_type: agentType }).then(r => r.data);
+export const fetchUserInfo = () => api.get(`${BASE}/auth/me`).then(r => r.data);
+export const fetchHistory = (limit = 50) => api.get(`${BASE}/history`, { params: { limit } }).then(r => r.data);

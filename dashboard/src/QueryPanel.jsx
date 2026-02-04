@@ -33,21 +33,6 @@ export default function QueryPanel() {
 
   return (
     <>
-      <div className="cards-row">
-        <div className="card">
-          <div className="label">Spend Agent</div>
-          <div className="value blue" style={{ fontSize: '1rem' }}>localhost:8001</div>
-        </div>
-        <div className="card">
-          <div className="label">Demand Agent</div>
-          <div className="value blue" style={{ fontSize: '1rem' }}>localhost:8002</div>
-        </div>
-        <div className="card">
-          <div className="label">Gateway</div>
-          <div className="value green" style={{ fontSize: '1rem' }}>localhost:8000</div>
-        </div>
-      </div>
-
       <div className="panel">
         <h3>Send a Query</h3>
         <form className="query-form" onSubmit={handleSubmit}>
@@ -68,10 +53,10 @@ export default function QueryPanel() {
 
         {/* Quick-pick examples */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-          {agentType === 'spend'
+          {(agentType === 'spend'
             ? ['What is total revenue?', 'Show orders with high priority', 'How many products are in Technology?']
             : ['Which products have low stock?', 'Show me average price by product type', 'Which products are unavailable?']
-          }.map(ex => (
+          ).map(ex => (
             <button key={ex} onClick={() => setQuery(ex)}
               style={{ background: '#1a2232', border: '1px solid #2a3548', borderRadius: 5, color: '#7a8fa3', padding: '4px 10px', fontSize: '0.78rem', cursor: 'pointer' }}>
               {ex}

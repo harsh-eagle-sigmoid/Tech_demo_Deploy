@@ -18,7 +18,7 @@ import psycopg2
 from dotenv import load_dotenv
 import os
 
-load_dotenv(dotenv_path="/home/lenovo/Desktop/New_tech_demo/.env")
+load_dotenv()
 
 DB_HOST     = os.getenv("DB_HOST", "localhost")
 DB_PORT     = int(os.getenv("DB_PORT", "5432"))

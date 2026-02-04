@@ -260,4 +260,5 @@ class Evaluator:
 
         except Exception as e:
             logger.error(f"Error storing evaluation result: {e}")
+            print(f"CRITICAL DB ERROR: {e}")  # Force print to stdout
             return False

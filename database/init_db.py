@@ -107,9 +107,16 @@ def create_monitoring_tables():
     """Create monitoring framework tables"""
 
     monitoring_tables = """
+    -- Drop tables if they exist to apply schema changes
+    DROP TABLE IF EXISTS monitoring.drift_monitoring CASCADE;
+    DROP TABLE IF EXISTS monitoring.errors CASCADE;
+    DROP TABLE IF EXISTS monitoring.evaluations CASCADE;
+    DROP TABLE IF EXISTS monitoring.queries CASCADE;
+    DROP TABLE IF EXISTS monitoring.baseline CASCADE;
+
     -- 1. queries table
     CREATE TABLE IF NOT EXISTS monitoring.queries (
-        query_id SERIAL PRIMARY KEY,
+        query_id VARCHAR(50) PRIMARY KEY,
         query_text TEXT NOT NULL,
         agent_type VARCHAR(20) NOT NULL,
         agent_response TEXT,
@@ -124,7 +131,7 @@ def create_monitoring_tables():
     -- 2. evaluations table
     CREATE TABLE IF NOT EXISTS monitoring.evaluations (
         evaluation_id SERIAL PRIMARY KEY,
-        query_id VARCHAR(20) NOT NULL,
+        query_id VARCHAR(50) NOT NULL REFERENCES monitoring.queries(query_id),
         query_text TEXT NOT NULL,
         agent_type VARCHAR(20) NOT NULL,
         complexity VARCHAR(20),
@@ -145,7 +152,7 @@ def create_monitoring_tables():
     CREATE TABLE IF NOT EXISTS monitoring.errors (
         error_id SERIAL PRIMARY KEY,
         evaluation_id INTEGER REFERENCES monitoring.evaluations(evaluation_id),
-        query_id INTEGER REFERENCES monitoring.queries(query_id),
+        query_id VARCHAR(50) REFERENCES monitoring.queries(query_id),
         error_category VARCHAR(50),
         error_subcategory VARCHAR(50),
         error_message TEXT,
@@ -153,6 +160,7 @@ def create_monitoring_tables():
         severity VARCHAR(20),
         frequency_count INTEGER DEFAULT 1,
         confidence FLOAT,
+        suggested_fix TEXT,
         first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
@@ -160,7 +168,7 @@ def create_monitoring_tables():
     -- 4. drift_monitoring table
     CREATE TABLE IF NOT EXISTS monitoring.drift_monitoring (
         drift_id SERIAL PRIMARY KEY,
-        query_id INTEGER REFERENCES monitoring.queries(query_id),
+        query_id VARCHAR(50) REFERENCES monitoring.queries(query_id),
         query_embedding VECTOR(384),
         drift_score FLOAT,
         drift_classification VARCHAR(20),
@@ -184,7 +192,7 @@ def create_monitoring_tables():
     -- Create indexes for performance
     CREATE INDEX IF NOT EXISTS idx_query_agent ON monitoring.queries(agent_type);
     CREATE INDEX IF NOT EXISTS idx_query_created ON monitoring.queries(created_at);
-    CREATE INDEX IF NOT EXISTS idx_eval_result ON monitoring.evaluations(evaluation_result);
+    CREATE INDEX IF NOT EXISTS idx_eval_result ON monitoring.evaluations(result);
     CREATE INDEX IF NOT EXISTS idx_error_category ON monitoring.errors(error_category);
     CREATE INDEX IF NOT EXISTS idx_drift_score ON monitoring.drift_monitoring(drift_score);
     """

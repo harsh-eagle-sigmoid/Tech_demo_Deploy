@@ -15,10 +15,12 @@ export default function ErrorsPanel() {
   const [data, setData]   = useState(null);
   const [error, setError] = useState(null);
 
+  // Auto-refresh every 10 seconds
   useEffect(() => {
-    fetchErrors()
-      .then(setData)
-      .catch(e => setError(e.message));
+    const load = () => fetchErrors().then(setData).catch(e => setError(e.message));
+    load();  // Initial load
+    const interval = setInterval(load, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   if (error) return <p className="error-msg">{error}</p>;
