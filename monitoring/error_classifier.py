@@ -15,7 +15,7 @@ DB_NAME     = os.getenv("DB_NAME", "unilever_poc")
 DB_USER     = os.getenv("DB_USER", "postgres")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "postgres")
 
-# ── Keyword rules per category ────────────────────────────────────────────
+
 RULES = {
     "SQL_GENERATION": [
         r"syntax error",
@@ -61,7 +61,6 @@ RULES = {
     ],
 }
 
-# ── Severity rules ────────────────────────────────────────────────────────
 SEVERITY_MAP = {
     "SQL_GENERATION":    "high",
     "CONTEXT_RETRIEVAL": "high",
@@ -72,7 +71,7 @@ SEVERITY_MAP = {
 
 
 class ErrorClassifier:
-    """Rule-based error classification."""
+    
 
     def classify(self, error_message: str, query_id: Optional[str] = None,
                  evaluation_id: Optional[int] = None) -> Dict:
@@ -82,7 +81,7 @@ class ErrorClassifier:
 
         msg_lower = error_message.lower()
 
-        # Match against rules — first match wins
+       
         for category, patterns in RULES.items():
             for pattern in patterns:
                 if re.search(pattern, msg_lower):
@@ -91,12 +90,12 @@ class ErrorClassifier:
                     self._store(result)
                     return result
 
-        # No rule matched → default to AGENT_LOGIC
+        
         result = self._build_result(query_id, evaluation_id, "AGENT_LOGIC", "low", error_message)
         self._store(result)
         return result
 
-    # ── Helpers ───────────────────────────────────────────────────────────
+    
     @staticmethod
     def _build_result(query_id, evaluation_id, category, severity, error_message) -> Dict:
         suggestions = {
@@ -118,7 +117,7 @@ class ErrorClassifier:
         }
 
     def _store(self, result: Dict):
-        """Store classified error in monitoring.errors."""
+       
         try:
             conn = psycopg2.connect(
                 host=DB_HOST, port=DB_PORT, database=DB_NAME,

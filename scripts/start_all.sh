@@ -21,7 +21,7 @@ SPEND_PID=$!
 
 # Start Spend Agent UI
 echo "🎨 Starting Spend Agent UI (Port 8501)..."
-nohup $STREAMLIT_EXEC run streamlit_app.py --server.port 8501 > streamlit_spend.log 2>&1 &
+nohup $PYTHON_EXEC -m streamlit run streamlit_app.py --server.port 8501 > streamlit_spend.log 2>&1 &
 SPEND_UI_PID=$!
 
 # Start Demand Agent
@@ -32,13 +32,13 @@ DEMAND_PID=$!
 
 # Start Demand Agent UI
 echo "🎨 Starting Demand Agent UI (Port 8502)..."
-nohup $STREAMLIT_EXEC run streamlit_app.py --server.port 8502 > streamlit_demand.log 2>&1 &
+nohup $PYTHON_EXEC -m streamlit run streamlit_app.py --server.port 8502 > streamlit_demand.log 2>&1 &
 DEMAND_UI_PID=$!
 
 # Start API Gateway
 echo "🚀 Starting API Gateway (Port 8000)..."
 cd /home/lenovo/New_tech_demo
-nohup $PYTHON_EXEC -m api.main > api.log 2>&1 &
+nohup $PYTHON_EXEC -m api.main > logs/api.log 2>&1 &
 API_PID=$!
 
 # Start Dashboard

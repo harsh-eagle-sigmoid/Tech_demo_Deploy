@@ -1,23 +1,17 @@
-"""
-LLM Client Wrapper - Supports Azure OpenAI and Ollama
-"""
+
 from typing import List, Dict, Optional
 from openai import AzureOpenAI
+import time
 import ollama
 from loguru import logger
 from config.settings import settings
 
 
 class LLMClient:
-    """Universal LLM client that supports multiple providers"""
+   
 
     def __init__(self, provider: str = "azure"):
-        """
-        Initialize LLM client
-
-        Args:
-            provider: "azure" or "ollama"
-        """
+        
         self.provider = provider.lower()
 
         if self.provider == "azure":
@@ -30,7 +24,7 @@ class LLMClient:
             logger.info(f"Initialized Azure OpenAI client with model: {self.model}")
 
         elif self.provider == "ollama":
-            self.client = None  # Ollama uses direct function calls
+            self.client = None  
             self.model = settings.OLLAMA_MODEL
             logger.info(f"Initialized Ollama client with model: {self.model}")
 
@@ -44,18 +38,7 @@ class LLMClient:
         max_tokens: int = 2000,
         stream: bool = False
     ) -> str:
-        """
-        Generate response from LLM
-
-        Args:
-            messages: List of message dicts with 'role' and 'content'
-            temperature: Sampling temperature (0.0 = deterministic)
-            max_tokens: Maximum tokens to generate
-            stream: Whether to stream the response
-
-        Returns:
-            Generated text response
-        """
+        
         try:
             if self.provider == "azure":
                 return self._generate_azure(messages, temperature, max_tokens, stream)
@@ -72,18 +55,31 @@ class LLMClient:
         max_tokens: int,
         stream: bool
     ) -> str:
-        """Generate response using Azure OpenAI"""
+        
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                stream=stream
-            )
+            max_retries = 5
+            base_delay = 2
+
+            for attempt in range(max_retries):
+                try:
+                    response = self.client.chat.completions.create(
+                        model=self.model,
+                        messages=messages,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        stream=stream
+                    )
+                    break # Success
+                except Exception as e:
+                    if ("429" in str(e) or "RateLimit" in str(e)) and attempt < max_retries - 1:
+                        sleep_time = base_delay * (2 ** attempt)
+                        logger.warning(f"Rate Limit hit. Retrying in {sleep_time}s... (Attempt {attempt+1}/{max_retries})")
+                        time.sleep(sleep_time)
+                    else:
+                        raise e
 
             if stream:
-                # Handle streaming response
+                
                 full_response = ""
                 for chunk in response:
                     if chunk.choices and chunk.choices[0].delta.content:
@@ -103,7 +99,7 @@ class LLMClient:
         max_tokens: int,
         stream: bool
     ) -> str:
-        """Generate response using Ollama"""
+        
         try:
             response = ollama.chat(
                 model=self.model,
@@ -116,7 +112,7 @@ class LLMClient:
             )
 
             if stream:
-                # Handle streaming response
+               
                 full_response = ""
                 for chunk in response:
                     if 'message' in chunk and 'content' in chunk['message']:
@@ -130,7 +126,7 @@ class LLMClient:
             raise
 
     def test_connection(self) -> bool:
-        """Test LLM connection"""
+        
         try:
             test_messages = [
                 {"role": "system", "content": "You are a helpful assistant."},
@@ -147,16 +143,16 @@ class LLMClient:
 
 
 def get_agent_llm() -> LLMClient:
-    """Get LLM client for agents"""
+    
     return LLMClient(provider=settings.AGENT_LLM_PROVIDER)
 
 
 def get_evaluator_llm() -> LLMClient:
-    """Get LLM client for evaluator"""
+    
     return LLMClient(provider=settings.EVALUATOR_LLM_PROVIDER)
 
 
-# Test function
+
 if __name__ == "__main__":
     logger.add("logs/llm_client_test.log")
 
@@ -166,7 +162,7 @@ if __name__ == "__main__":
     if client.test_connection():
         print("✅ Azure OpenAI connection successful!")
 
-        # Test SQL generation
+       
         messages = [
             {"role": "system", "content": "You are a SQL expert."},
             {"role": "user", "content": "Write a SQL query to get total sales from orders table"}

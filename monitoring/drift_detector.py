@@ -1,20 +1,10 @@
-"""
-Drift Detector
-Uses sentence-transformers (all-MiniLM-L6-v2) to embed queries.
-Compares new queries against a baseline centroid stored in pgvector.
-No Azure tokens consumed — embeddings are local.
 
-Drift levels:
-  normal  → similarity >= 0.7
-  medium  → 0.5 <= similarity < 0.7
-  high    → similarity < 0.5
-"""
 import numpy as np
 import psycopg2
 import psycopg2.extras
 from typing import List, Optional, Dict
 from loguru import logger
-from sentence_transformers import SentenceTransformer
+from monitoring.model_loader import get_embedding_model
 from dotenv import load_dotenv
 import os
 
@@ -29,46 +19,38 @@ DB_PASSWORD = os.getenv("DB_PASSWORD", "postgres")
 DRIFT_HIGH_THRESHOLD   = float(os.getenv("DRIFT_HIGH_THRESHOLD", "0.5"))
 DRIFT_MEDIUM_THRESHOLD = float(os.getenv("DRIFT_MEDIUM_THRESHOLD", "0.3"))
 EMBEDDING_MODEL        = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
-EMBEDDING_DIM          = int(os.getenv("EMBEDDING_DIMENSION", "384"))
+EMBEDDING_DIM          = int(os.getenv("EMBEDDING_DIMENSION", "1024"))
 
 
 class DriftDetector:
-    """Detects query drift using sentence-transformer embeddings."""
+    
 
     def __init__(self):
-        logger.info(f"Loading embedding model: {EMBEDDING_MODEL}")
-        self.model = SentenceTransformer(EMBEDDING_MODEL)
+        logger.info(f"Loading embedding model via ModelLoader (Bedrock/Local)...")
+        self.model = get_embedding_model()
+        if not self.model:
+             logger.error("Failed to load embedding model")
         logger.info("Embedding model loaded")
 
-    # ── DB ────────────────────────────────────────────────────────────────
+    
     def _conn(self):
         return psycopg2.connect(
             host=DB_HOST, port=DB_PORT, database=DB_NAME,
             user=DB_USER, password=DB_PASSWORD
         )
 
-    # ── Embed ─────────────────────────────────────────────────────────────
+    
     def embed(self, text: str) -> List[float]:
-        """Embed a single text string → 384-dim vector."""
+        
         return self.model.encode(text).tolist()
 
     def embed_batch(self, texts: List[str]) -> List[List[float]]:
-        """Embed a list of texts."""
+        
         return self.model.encode(texts).tolist()
 
-    # ── Baseline ──────────────────────────────────────────────────────────
+    
     def create_baseline(self, agent_type: str, queries: List[str]) -> Dict:
-        """
-        Create baseline from a set of known-good queries.
-        Computes centroid embedding and stores in monitoring.baseline.
-
-        Args:
-            agent_type: 'spend' or 'demand'
-            queries: list of query texts to use as baseline
-
-        Returns:
-            baseline info dict
-        """
+        
         logger.info(f"Creating baseline for {agent_type} from {len(queries)} queries")
 
         embeddings = self.embed_batch(queries)
@@ -78,7 +60,7 @@ class DriftDetector:
             conn = self._conn()
             cur  = conn.cursor()
 
-            # Upsert baseline (delete old, insert new)
+            
             cur.execute("DELETE FROM monitoring.baseline WHERE agent_type = %s", (agent_type,))
             cur.execute("""
                 INSERT INTO monitoring.baseline (agent_type, centroid_embedding, num_queries, version)
@@ -97,7 +79,7 @@ class DriftDetector:
             return {"error": str(e)}
 
     def _get_baseline(self, agent_type: str) -> Optional[List[float]]:
-        """Load baseline centroid for an agent type. pgvector returns string — parse to floats."""
+        
         try:
             conn = self._conn()
             cur  = conn.cursor()
@@ -119,32 +101,25 @@ class DriftDetector:
             logger.error(f"Error loading baseline: {e}")
             return None
 
-    # ── Detect ────────────────────────────────────────────────────────────
+    
     @staticmethod
     def _cosine_similarity(a: List[float], b: List[float]) -> float:
         """Cosine similarity between two vectors."""
         a_np = np.array(a)
         b_np = np.array(b)
+        if a_np.shape != b_np.shape:
+            logger.warning(f"Dimension mismatch in cosine similarity: {a_np.shape} vs {b_np.shape}. "
+                           f"Baseline may need regeneration.")
+            return 0.0
         dot  = np.dot(a_np, b_np)
         norm = np.linalg.norm(a_np) * np.linalg.norm(b_np)
         return float(dot / norm) if norm != 0 else 0.0
 
     def detect(self, query_id: str, query_text: str, agent_type: str) -> Dict:
-        """
-        Detect drift for a single query.
-
-        Args:
-            query_id: unique ID
-            query_text: the user query
-            agent_type: 'spend' or 'demand'
-
-        Returns:
-            drift result dict
-        """
-        # Embed the incoming query
+        
         query_embedding = self.embed(query_text)
 
-        # Load baseline
+       
         baseline = self._get_baseline(agent_type)
 
         if baseline is None:
@@ -158,10 +133,24 @@ class DriftDetector:
                 "anomaly_flag": False
             }
 
-        # Cosine similarity to baseline centroid 
+        # Dimension guard: if baseline was created with a different model, skip drift
+        if len(query_embedding) != len(baseline):
+            logger.warning(f"Baseline dimension mismatch for {agent_type}: "
+                           f"query={len(query_embedding)}, baseline={len(baseline)}. "
+                           f"Regenerate baseline with current embedding model.")
+            return {
+                "query_id": query_id,
+                "agent_type": agent_type,
+                "drift_score": 0.0,
+                "drift_classification": "dimension_mismatch",
+                "similarity_to_baseline": 0.0,
+                "anomaly_flag": False
+            }
+
+        
         similarity = self._cosine_similarity(query_embedding, baseline)
 
-        # Classify drift
+       
         if similarity >= (1.0 - DRIFT_MEDIUM_THRESHOLD):       # >= 0.7
             classification = "normal"
             anomaly        = False
@@ -172,7 +161,7 @@ class DriftDetector:
             classification = "high"
             anomaly        = True
 
-        drift_score = 1.0 - similarity          # 0 = no drift, 1 = max drift
+        drift_score = 1.0 - similarity          
 
         result = {
             "query_id":              query_id,
@@ -184,13 +173,13 @@ class DriftDetector:
             "anomaly_flag":          anomaly
         }
 
-        # Store in DB
+        
         self._store_drift(result)
 
         return result
 
     def _store_drift(self, result: Dict):
-        """Store drift result in monitoring.drift_monitoring."""
+        
         try:
             conn = self._conn()
             cur  = conn.cursor()
@@ -199,6 +188,12 @@ class DriftDetector:
                     (query_id, query_embedding, drift_score, drift_classification,
                      similarity_to_baseline, is_anomaly)
                 VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (query_id) DO UPDATE SET
+                    query_embedding = EXCLUDED.query_embedding,
+                    drift_score = EXCLUDED.drift_score,
+                    drift_classification = EXCLUDED.drift_classification,
+                    similarity_to_baseline = EXCLUDED.similarity_to_baseline,
+                    is_anomaly = EXCLUDED.is_anomaly
             """, (
                 result["query_id"],
                 result["query_embedding"],

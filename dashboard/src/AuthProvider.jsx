@@ -16,8 +16,8 @@ const AuthContext = createContext({
   authEnabled: false,
   user: null,
   accessToken: null,
-  login: () => {},
-  logout: () => {},
+  login: () => { },
+  logout: () => { },
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -57,6 +57,9 @@ function AuthConsumer({ children, authEnabled }) {
   };
 
   const logout = () => {
+    // Clear dashboard selection on logout
+    localStorage.removeItem('dashboard_selection');
+
     instance.logoutRedirect().catch((error) => {
       console.error("Logout failed:", error);
     });
@@ -96,8 +99,8 @@ function NoAuthProvider({ children }) {
         authEnabled: false,
         user: { name: "Anonymous", email: null },
         accessToken: null,
-        login: () => {},
-        logout: () => {},
+        login: () => { },
+        logout: () => { },
         isAuthenticated: false,
       }}
     >
@@ -174,8 +177,8 @@ export function LoginButton() {
 
   if (isAuthenticated) {
     return (
-      <div className="auth-user">
-        <span className="user-name">{user?.name}</span>
+      <div className="auth-user" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <span className="user-name" style={{ marginRight: '8px', fontWeight: 600, color: '#fff' }}>{user?.name}</span>
         <button onClick={logout} className="btn-logout">
           Sign Out
         </button>
@@ -204,10 +207,20 @@ export function RequireAuth({ children }) {
 
   if (!isAuthenticated) {
     return (
-      <div className="auth-required">
-        <h2>Authentication Required</h2>
-        <p>Please sign in with your Azure AD account to access this application.</p>
-        <button onClick={login} className="btn-login">
+      <div className="auth-required" style={{
+        height: '100vh',
+        width: '100vw',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#020617',
+        color: '#f8fafc',
+        textAlign: 'center'
+      }}>
+        <h2 style={{ marginBottom: '16px', fontSize: '2rem' }}>Authentication Required</h2>
+        <p style={{ marginBottom: '32px', color: '#94a3b8' }}>Please sign in with your Azure AD account to access this application.</p>
+        <button onClick={login} className="btn-login" style={{ padding: '12px 24px', fontSize: '1rem' }}>
           Sign In with Azure AD
         </button>
       </div>

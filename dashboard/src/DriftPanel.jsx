@@ -1,30 +1,34 @@
 import { useEffect, useState } from 'react';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { fetchDrift, executeSql } from './api';
 
 const COLORS = { normal: '#3ecf8e', medium: '#f7b731', high: '#ff6b6b' };
 
-export default function DriftPanel() {
+export default function DriftPanel({ agentId, isActive = true }) {
   const [data, setData] = useState(null);
   const [filter, setFilter] = useState('');
   const [error, setError] = useState(null);
   const [selectedQuery, setSelectedQuery] = useState(null);
 
+  // Use passed agentId if available, otherwise manual filter
+  const activeFilter = agentId || filter;
+
   // Execution State
   const [execResult, setExecResult] = useState(null);
   const [execLoading, setExecLoading] = useState(false);
 
-  const load = (agentType) => {
-    fetchDrift(agentType || undefined)
+  const load = () => {
+    if (!isActive) return;
+    fetchDrift(activeFilter || undefined)
       .then(setData)
       .catch(e => setError(e.message));
   };
 
   useEffect(() => {
-    load(filter);
-    const interval = setInterval(() => load(filter), 3000);
+    load();
+    const interval = setInterval(load, 3000);
     return () => clearInterval(interval);
-  }, [filter]);
+  }, [activeFilter, isActive]);
 
   // Auto-load output when query selected
   useEffect(() => {
@@ -59,13 +63,15 @@ export default function DriftPanel() {
 
   return (
     <>
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 18, flexWrap: 'wrap' }}>
-        {['', 'spend', 'demand'].map(v => (
-          <button key={v} className={`tab-btn ${filter === v ? 'active' : ''}`} onClick={() => setFilter(v)}>
-            {v || 'All'}
-          </button>
-        ))}
-      </div>
+      {!agentId && (
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 18, flexWrap: 'wrap' }}>
+          {['', 'spend', 'demand'].map(v => (
+            <button key={v} className={`tab-btn ${filter === v ? 'active' : ''}`} onClick={() => setFilter(v)}>
+              {v || 'All'}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="cards-row">
         <div className="card"><div className="label">Total Monitored</div><div className="value blue">{pieData.reduce((s, d) => s + d.value, 0)}</div></div>
@@ -79,12 +85,34 @@ export default function DriftPanel() {
         <div className="panel">
           <h3>Drift Distribution</h3>
           <ResponsiveContainer width="100%" height={240}>
-            <PieChart>
-              <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
-                {pieData.map((entry) => <Cell key={entry.key} fill={COLORS[entry.key] || '#7a8fa3'} />)}
-              </Pie>
-              <Tooltip contentStyle={{ background: '#1e2736', border: '1px solid #2a3548', borderRadius: 6, color: '#c8d6e5' }} />
-            </PieChart>
+            <BarChart data={pieData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
+              <defs>
+                <linearGradient id="gradNormal" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#3ecf8e" />
+                  <stop offset="100%" stopColor="#2ea043" />
+                </linearGradient>
+                <linearGradient id="gradMedium" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#4c9eff" />
+                  <stop offset="100%" stopColor="#8c52ff" />
+                </linearGradient>
+                <linearGradient id="gradHigh" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#ec4899" />
+                  <stop offset="100%" stopColor="#d946ef" />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#2a3548" horizontal={false} />
+              <XAxis type="number" stroke="#5a7a99" fontSize={12} />
+              <YAxis dataKey="name" type="category" stroke="#5a7a99" fontSize={12} width={60} />
+              <Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={{ background: '#1e2736', border: '1px solid #2a3548', borderRadius: 6, color: '#c8d6e5' }} />
+              <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                {pieData.map((entry) => {
+                  const fillUrl = entry.key === 'normal' ? 'url(#gradNormal)'
+                    : entry.key === 'medium' ? 'url(#gradMedium)'
+                      : 'url(#gradHigh)';
+                  return <Cell key={entry.key} fill={fillUrl} />;
+                })}
+              </Bar>
+            </BarChart>
           </ResponsiveContainer>
         </div>
         <div className="panel">
@@ -104,11 +132,25 @@ export default function DriftPanel() {
         </div>
       </div>
 
+      {/* NEW TREND PANEL */}
+      <div className="panel" style={{ marginBottom: '24px' }}>
+        <h3>Drift Trend (Daily Average)</h3>
+        <ResponsiveContainer width="100%" height={240}>
+          <LineChart data={data.trend} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#2a3548" />
+            <XAxis dataKey="date" stroke="#5a7a99" fontSize={12} />
+            <YAxis stroke="#5a7a99" fontSize={12} domain={[0, 1]} />
+            <Tooltip contentStyle={{ background: '#1e2736', border: '1px solid #2a3548', color: '#c8d6e5' }} />
+            <Line type="monotone" dataKey="avg_score" stroke="#4c9eff" strokeWidth={3} dot={{ fill: '#4c9eff', r: 4 }} activeDot={{ r: 6 }} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
       <div className="panel" style={{ marginBottom: '24px' }}>
         <h3>Top High-Drift Queries (Select to view details)</h3>
         <div style={{ maxHeight: '400px', overflowY: 'auto', border: '1px solid #334155', borderRadius: '6px' }}>
           <table className="data-table" style={{ margin: 0 }}>
-            <thead style={{ position: 'sticky', top: 0, backgroundColor: '#1e293b', zIndex: 5 }}>
+            <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
               <tr><th>Query</th><th>Query ID</th><th>Drift Score</th><th>Level</th></tr>
             </thead>
             <tbody>
@@ -133,21 +175,21 @@ export default function DriftPanel() {
             <button onClick={() => setSelectedQuery(null)} style={{ background: 'none', border: 'none', color: '#7a8fa3', cursor: 'pointer' }}>✕ Close</button>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '40px' }}>
             <div>
-              <div className="label">Natural Language Query</div>
-              <div style={{ padding: '12px', background: '#0f1420', borderRadius: '6px', color: '#fff', fontSize: '1.1rem', marginBottom: '16px' }}>
+              <div className="label" style={{ marginBottom: '12px' }}>Natural Language Query</div>
+              <div style={{ padding: '16px', background: '#0f1420', borderRadius: '8px', color: '#fff', fontSize: '1.1rem', marginBottom: '24px', lineHeight: '1.5' }}>
                 {selectedQuery.query_text}
               </div>
-              <div className="label">Generated SQL</div>
-              <pre style={{ padding: '12px', background: '#0f1420', borderRadius: '6px', color: '#8ecae6', overflowX: 'auto', fontFamily: 'Consolas, monospace', fontSize: '0.85rem', whiteSpace: 'pre-wrap' }}>
+              <div className="label" style={{ marginBottom: '12px' }}>Generated SQL</div>
+              <pre style={{ padding: '16px', background: '#0f1420', borderRadius: '8px', color: '#8ecae6', overflowX: 'auto', fontFamily: 'Consolas, monospace', fontSize: '0.9rem', whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
                 {selectedQuery.sql}
               </pre>
             </div>
 
             <div>
-              <div className="label">Query Output</div>
-              <div style={{ background: '#0f1420', padding: '16px', borderRadius: '6px', minHeight: '150px' }}>
+              <div className="label" style={{ marginBottom: '12px' }}>Query Output</div>
+              <div style={{ background: '#0f1420', padding: '20px', borderRadius: '8px', minHeight: '200px' }}>
                 {execLoading ? (
                   <div style={{ color: '#5a7a99', fontStyle: 'italic', padding: '20px' }}>Loading output...</div>
                 ) : !execResult ? (

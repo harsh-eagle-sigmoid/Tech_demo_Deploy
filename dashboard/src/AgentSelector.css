@@ -1,0 +1,241 @@
+/* Dashboard Agent Selector Styles */
+
+/* ── Shell (Root) ── */
+.agent-shell {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none;
+    /* Firefox */
+    -ms-overflow-style: none;
+    /* IE and Edge */
+}
+
+.agent-shell::-webkit-scrollbar {
+    display: none;
+}
+
+/* ── Background Wrapper ── */
+.agent-bg-wrapper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 110%;
+    z-index: 0;
+}
+
+/* ── Container ── */
+.agent-selector-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    min-height: 100vh;
+    padding: 40px 0 0 0;
+    position: relative;
+    z-index: 10;
+}
+
+/* ── Header ── */
+.agent-header {
+    margin-bottom: 50px;
+    text-align: center;
+}
+
+.agent-badge {
+    background: rgba(56, 139, 253, 0.15);
+    color: #58a6ff;
+    padding: 8px 16px;
+    border-radius: 20px;
+    display: inline-block;
+    margin-bottom: 15px;
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+.agent-title {
+    font-size: 32px;
+    margin: 0 0 10px 0;
+    color: transparent;
+    /* Gradient handled by GradientText component */
+}
+
+.agent-subtitle {
+    color: #fff;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+/* ── Card Grid ── */
+.agent-grid {
+    display: flex;
+    gap: 80px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 60px;
+}
+
+/* ── Agent Card ── */
+.agent-card {
+    width: 380px;
+    cursor: default;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 30px;
+    background: rgba(13, 17, 23, 0.6);
+    /* Darker background, less blur needed */
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.agent-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+}
+
+.agent-card-title {
+    margin: 0;
+    color: #fff;
+    font-size: 20px;
+}
+
+.agent-card-desc {
+    margin: 8px 0 0 0;
+    color: #e6edf3;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.agent-status-badge {
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.status-healthy {
+    background: rgba(35, 134, 54, 0.3);
+}
+
+.status-issue {
+    background: rgba(210, 153, 34, 0.3);
+}
+
+/* ── Metrics ── */
+.agent-metrics {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    margin-top: 30px;
+}
+
+.metric-label {
+    color: #d0d7de;
+    font-size: 12px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+}
+
+.metric-value-lg {
+    color: #3fb950;
+    font-size: 42px;
+    font-weight: bold;
+    font-family: monospace;
+}
+
+.accuracy-visual {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: 3px solid #238636;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(35, 134, 54, 0.1);
+}
+
+.accuracy-dot {
+    width: 20px;
+    height: 20px;
+    background: #3fb950;
+    border-radius: 50%;
+}
+
+.agent-stats-row {
+    display: flex;
+    gap: 40px;
+    margin-bottom: 25px;
+    padding-bottom: 25px;
+    border-bottom: 1px solid #30363d;
+}
+
+.stat-label {
+    color: #fff;
+    font-size: 11px;
+    margin-bottom: 5px;
+}
+
+.stat-value {
+    color: #fff;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+/* ── Button ── */
+.agent-select-btn {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, #6d28d9 0%, #4f46e5 100%);
+    /* Deep Purple Gradient */
+    border: none;
+    border-radius: 6px;
+    color: #fff;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    transform: translateY(0);
+    box-shadow: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.agent-select-btn:hover {
+    background: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%);
+    /* Lighter on hover */
+    box-shadow: 0 0 20px rgba(124, 58, 237, 0.5);
+    /* Purple Glow */
+    transform: translateY(-2px);
+}
+
+.agent-select-btn:active {
+    transform: translateY(1px);
+}
+
+/* ── Footer ── */
+.agent-footer {
+    margin-top: auto;
+    padding: 20px 0;
+    text-align: center;
+    color: #8b949e;
+    font-size: 12px;
+    width: 100%;
+    background: rgba(13, 17, 23, 0.8);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}

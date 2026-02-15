@@ -9,7 +9,7 @@ def run_simulation():
     print("Directly hitting Agents (Ports 8001/8002). Telemetry will appear in Monitor (Port 8000).")
 
     # Load Queries
-    with open("data/ground_truth/all_queries.json") as f:
+    with open("data/ground_truth/test.json") as f:
         all_queries = json.load(f)
 
     spend_queries = [q for q in all_queries if q.get("agent_type") == "spend"]
@@ -18,8 +18,8 @@ def run_simulation():
     print(f"Loaded {len(spend_queries)} unique Spend queries.")
     print(f"Loaded {len(demand_queries)} unique Demand queries.")
 
-    # Expand to 100 each
-    def expand_list(lst, target=100):
+    # Expand to 20 each (Quick Verification)
+    def expand_list(lst, target=20):
         if not lst: return []
         res = []
         while len(res) < target:
@@ -33,12 +33,15 @@ def run_simulation():
     print(f"Queued {len(target_demand)} Demand queries.")
 
     # Worker Function
-    def send_query(query_obj, port):
-        url = f"http://localhost:{port}/query"
-        payload = {"query": query_obj["query_text"]}
+    def send_query(query_obj, agent_type):
+        url = "http://localhost:8000/api/v1/query"
+        payload = {
+            "query": query_obj["query_text"],
+            "agent_type": agent_type
+        }
         try:
             start = time.time()
-            resp = requests.post(url, json=payload, timeout=30)
+            resp = requests.post(url, json=payload, timeout=90)
             duration = time.time() - start
             return resp.status_code, duration
         except Exception as e:
@@ -51,17 +54,20 @@ def run_simulation():
     with ThreadPoolExecutor(max_workers=5) as executor:
         futures = []
         
-        # Scheduling Spend (Port 8001)
+        # Scheduling Spend (API Gateway)
         for q in target_spend:
-            futures.append(executor.submit(send_query, q, 8001))
+            futures.append(executor.submit(send_query, q, "spend"))
             
-        # Scheduling Demand (Port 8002)
+        # Scheduling Demand (API Gateway)
         for q in target_demand:
-            futures.append(executor.submit(send_query, q, 8002))
+            futures.append(executor.submit(send_query, q, "demand"))
             
         print("⚡ Sending queries...")
         for future in as_completed(futures):
             status, duration = future.result()
+            if status == "error" or (isinstance(status, int) and status != 200):
+                print(f"❌ Error: {duration}")
+            
             completed += 1
             if completed % 10 == 0:
                 print(f"[{completed}/{total}] Queries processed.")

@@ -1,6 +1,4 @@
-"""
-Database connection manager
-"""
+
 import psycopg2
 from psycopg2 import pool
 from sqlalchemy import create_engine
@@ -12,10 +10,10 @@ from loguru import logger
 from config.settings import settings
 
 
-# SQLAlchemy Base
+
 Base = declarative_base()
 
-# SQLAlchemy Engine
+
 engine = create_engine(
     settings.database_url,
     pool_pre_ping=True,
@@ -24,19 +22,19 @@ engine = create_engine(
     echo=False
 )
 
-# Session factory
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 class DatabaseManager:
-    """Manages database connections and operations"""
+    
 
     def __init__(self):
         self.connection_pool = None
         self._initialize_pool()
 
     def _initialize_pool(self):
-        """Initialize connection pool"""
+        
         try:
             self.connection_pool = psycopg2.pool.SimpleConnectionPool(
                 minconn=1,
@@ -53,25 +51,25 @@ class DatabaseManager:
             raise
 
     def get_connection(self):
-        """Get connection from pool"""
+        
         if self.connection_pool:
             return self.connection_pool.getconn()
         raise Exception("Connection pool not initialized")
 
     def return_connection(self, conn):
-        """Return connection to pool"""
+        
         if self.connection_pool:
             self.connection_pool.putconn(conn)
 
     def close_all_connections(self):
-        """Close all connections in pool"""
+        
         if self.connection_pool:
             self.connection_pool.closeall()
             logger.info("All database connections closed")
 
     @contextmanager
     def get_cursor(self):
-        """Context manager for database cursor"""
+        
         conn = self.get_connection()
         try:
             cursor = conn.cursor()
@@ -86,13 +84,13 @@ class DatabaseManager:
             self.return_connection(conn)
 
 
-# Global database manager instance
+
 db_manager = DatabaseManager()
 
 
 @contextmanager
 def get_db_session():
-    """Context manager for SQLAlchemy session"""
+    
     session = SessionLocal()
     try:
         yield session
@@ -106,7 +104,7 @@ def get_db_session():
 
 
 def test_connection():
-    """Test database connection"""
+    
     try:
         with db_manager.get_cursor() as cursor:
             cursor.execute("SELECT version();")

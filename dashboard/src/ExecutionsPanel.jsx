@@ -1,19 +1,22 @@
 import { useState, useEffect } from 'react';
 import { fetchHistory } from './api';
+import ExecutionTrace from './ExecutionTrace';
 
-export default function ExecutionsPanel() {
+export default function ExecutionsPanel({ agentId, isActive = true }) {
     const [runs, setRuns] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedRunId, setSelectedRunId] = useState(null);
 
     useEffect(() => {
+        if (!isActive) return;
         loadHistory();
         const interval = setInterval(loadHistory, 3000); // Poll every 3s
         return () => clearInterval(interval);
-    }, []);
+    }, [agentId, isActive]);
 
     const loadHistory = () => {
-        fetchHistory()
+        fetchHistory(50, agentId)
             .then(data => {
                 setRuns(data);
                 setLoading(false);
@@ -56,16 +59,15 @@ export default function ExecutionsPanel() {
                 />
             </div>
 
-            <div className="table-wrapper" style={{ overflowX: 'auto', maxHeight: '500px', overflowY: 'auto', border: '1px solid #2a3548', borderRadius: '6px' }}>
-                <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', margin: 0 }}>
-                    <thead style={{ position: 'sticky', top: 0, backgroundColor: '#1e293b', zIndex: 5 }}>
+            <div className="table-wrapper" style={{ overflowX: 'auto', maxHeight: '500px', overflowY: 'auto' }}>
+                <table className="data-table">
+                    <thead>
                         <tr>
                             <th>Prompt</th>
                             <th>Correctness</th>
                             <th>Drift Level</th>
                             <th>Confidence</th>
                             <th>Error Bucket</th>
-                            <th>Dataset</th>
                             <th>Timestamp</th>
                         </tr>
                     </thead>
@@ -73,7 +75,19 @@ export default function ExecutionsPanel() {
                         {loading && runs.length === 0 ? (
                             <tr><td colSpan="6" style={{ padding: '20px', textAlign: 'center' }}>Loading...</td></tr>
                         ) : filteredRuns.map((run, i) => (
-                            <tr key={run.query_id || i}>
+                            <tr
+                                key={run.query_id || i}
+                                onClick={() => setSelectedRunId(run.query_id)}
+                                style={{
+                                    cursor: 'pointer',
+                                    transition: 'background 0.2s',
+                                    background: selectedRunId === run.query_id ? '#1e293b' : 'transparent'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.background = '#1e293b'}
+                                onMouseLeave={(e) => {
+                                    if (selectedRunId !== run.query_id) e.currentTarget.style.background = 'transparent'
+                                }}
+                            >
                                 <td style={{ maxWidth: '300px' }} title={run.prompt}>
                                     {run.prompt}
                                 </td>
@@ -102,11 +116,6 @@ export default function ExecutionsPanel() {
                                         <span style={{ color: '#5a7a99' }}>-</span>
                                     )}
                                 </td>
-                                <td>
-                                    <span style={{ color: run.dataset.toLowerCase() === 'spend' ? '#4c9eff' : '#f7b731', fontWeight: 600 }}>
-                                        {run.dataset.toUpperCase()}
-                                    </span>
-                                </td>
                                 <td style={{ color: '#7a8fa3', fontSize: '0.85em' }}>
                                     {new Date(run.timestamp).toLocaleString()}
                                 </td>
@@ -118,6 +127,13 @@ export default function ExecutionsPanel() {
                     </tbody>
                 </table>
             </div>
+
+            {/* Detailed Trace View at Bottom */}
+            {selectedRunId && (
+                <div id="trace-detail-view">
+                    <ExecutionTrace runId={selectedRunId} onClose={() => setSelectedRunId(null)} />
+                </div>
+            )}
         </div>
     );
 }

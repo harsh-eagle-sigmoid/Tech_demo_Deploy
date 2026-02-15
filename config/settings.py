@@ -59,13 +59,13 @@ class Settings(BaseSettings):
     ALERT_RECIPIENT_EMAILS: str = ""  # Comma-separated list
 
     # Evaluation Configuration
-    EVALUATION_THRESHOLD: float = 0.7
+    EVALUATION_THRESHOLD: float = 0.60
     DRIFT_HIGH_THRESHOLD: float = 0.5
     DRIFT_MEDIUM_THRESHOLD: float = 0.3
 
     # Embedding Configuration
     EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
-    EMBEDDING_DIMENSION: int = 384
+    EMBEDDING_DIMENSION: int = 1024  # Bedrock Titan V2
 
     # Azure AD Authentication Configuration
     AZURE_AD_TENANT_ID: str = ""

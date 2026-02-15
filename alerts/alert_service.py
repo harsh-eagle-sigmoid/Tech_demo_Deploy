@@ -1,12 +1,4 @@
-"""
-AWS SES/SNS Alert Service for Unilever Procurement GPT POC
 
-Sends email alerts for:
-- High drift detected
-- Critical errors
-- Accuracy drops below threshold
-- System health issues
-"""
 import logging
 from typing import List, Optional, Dict, Any
 from datetime import datetime
@@ -21,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class AlertType(Enum):
-    """Types of alerts that can be sent"""
+   
     HIGH_DRIFT = "high_drift"
     CRITICAL_ERROR = "critical_error"
     ACCURACY_DROP = "accuracy_drop"
@@ -30,9 +22,7 @@ class AlertType(Enum):
 
 
 class AlertService:
-    """
-    Alert service using AWS SES for emails and SNS for notifications
-    """
+   
 
     def __init__(self):
         self._ses_client = None
@@ -40,7 +30,7 @@ class AlertService:
         self._initialized = False
 
     def _init_clients(self):
-        """Lazy initialize AWS clients"""
+       
         if self._initialized:
             return
 
@@ -68,7 +58,7 @@ class AlertService:
 
     @property
     def is_enabled(self) -> bool:
-        """Check if email alerts are enabled"""
+       
         return (
             settings.ALERT_EMAIL_ENABLED and
             bool(settings.AWS_ACCESS_KEY_ID) and
@@ -77,7 +67,7 @@ class AlertService:
         )
 
     def _get_recipients(self) -> List[str]:
-        """Get list of recipient email addresses"""
+        
         if not settings.ALERT_RECIPIENT_EMAILS:
             return []
         return [email.strip() for email in settings.ALERT_RECIPIENT_EMAILS.split(',') if email.strip()]
@@ -89,18 +79,7 @@ class AlertService:
         body_text: str,
         recipients: Optional[List[str]] = None
     ) -> bool:
-        """
-        Send email via AWS SES
-
-        Args:
-            subject: Email subject
-            body_html: HTML body content
-            body_text: Plain text body content
-            recipients: List of recipient emails (uses default if not provided)
-
-        Returns:
-            True if email sent successfully
-        """
+       
         if not self.is_enabled:
             logger.debug("Email alerts disabled, skipping")
             return False
@@ -135,16 +114,7 @@ class AlertService:
             return False
 
     def send_sns_notification(self, message: str, subject: str) -> bool:
-        """
-        Send notification via AWS SNS
-
-        Args:
-            message: Notification message
-            subject: Notification subject
-
-        Returns:
-            True if notification sent successfully
-        """
+        
         if not settings.AWS_SNS_TOPIC_ARN:
             return False
 
@@ -172,24 +142,13 @@ class AlertService:
         details: Dict[str, Any],
         severity: str = "high"
     ) -> bool:
-        """
-        Send a formatted alert email
-
-        Args:
-            alert_type: Type of alert
-            title: Alert title
-            details: Dictionary of alert details
-            severity: Alert severity (low, medium, high, critical)
-
-        Returns:
-            True if alert sent successfully
-        """
+        
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # Build email content
+        
         subject = f"[{severity.upper()}] Unilever Procurement GPT - {title}"
 
-        # HTML body
+      
         details_html = "".join(
             f"<tr><td style='padding:8px;border:1px solid #ddd;font-weight:bold;'>{k}</td>"
             f"<td style='padding:8px;border:1px solid #ddd;'>{v}</td></tr>"
@@ -248,16 +207,16 @@ This is an automated alert from Unilever Procurement GPT POC.
 Dashboard: http://localhost:3000
         """
 
-        # Send email
+        
         email_sent = self.send_email(subject, body_html, body_text)
 
-        # Also send SNS if configured
+       
         if settings.AWS_SNS_TOPIC_ARN:
             self.send_sns_notification(body_text, subject)
 
         return email_sent
 
-    # Convenience methods for specific alert types
+    
 
     def alert_high_drift(
         self,
@@ -266,7 +225,7 @@ Dashboard: http://localhost:3000
         drift_score: float,
         agent_type: str
     ) -> bool:
-        """Send alert for high drift detection"""
+        
         return self.send_alert(
             alert_type=AlertType.HIGH_DRIFT,
             title="High Query Drift Detected",
@@ -287,7 +246,7 @@ Dashboard: http://localhost:3000
         error_message: str,
         agent_type: str
     ) -> bool:
-        """Send alert for critical errors"""
+        
         return self.send_alert(
             alert_type=AlertType.CRITICAL_ERROR,
             title=f"Critical Error: {error_category}",
@@ -307,7 +266,7 @@ Dashboard: http://localhost:3000
         agent_type: str,
         sample_size: int
     ) -> bool:
-        """Send alert for accuracy drop"""
+        
         drop = previous_accuracy - current_accuracy
         return self.send_alert(
             alert_type=AlertType.ACCURACY_DROP,
@@ -323,7 +282,7 @@ Dashboard: http://localhost:3000
         )
 
     def alert_system_down(self, service: str, error: str) -> bool:
-        """Send alert for system/service down"""
+        
         return self.send_alert(
             alert_type=AlertType.SYSTEM_DOWN,
             title=f"Service Down: {service}",
@@ -341,7 +300,7 @@ Dashboard: http://localhost:3000
         time_window: str,
         top_errors: List[Dict]
     ) -> bool:
-        """Send alert for error spike"""
+        
         top_errors_str = "; ".join(
             f"{e.get('category', 'Unknown')}: {e.get('count', 0)}"
             for e in top_errors[:3]
@@ -358,5 +317,5 @@ Dashboard: http://localhost:3000
         )
 
 
-# Global alert service instance
+
 alert_service = AlertService()

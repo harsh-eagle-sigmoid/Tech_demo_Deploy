@@ -1,8 +1,4 @@
-"""
-Database schema definitions for data tables
-"""
 
-# Spend Agent Schema
 SPEND_SCHEMA_SQL = """
 -- Customers table (dimension)
 CREATE TABLE IF NOT EXISTS spend_data.customers (
@@ -52,7 +48,7 @@ CREATE INDEX IF NOT EXISTS idx_customers_name ON spend_data.customers(customer_n
 CREATE INDEX IF NOT EXISTS idx_products_category ON spend_data.products(category);
 """
 
-# Demand Agent Schema
+
 DEMAND_SCHEMA_SQL = """
 -- Products table
 CREATE TABLE IF NOT EXISTS demand_data.products (
@@ -114,13 +110,13 @@ CREATE INDEX IF NOT EXISTS idx_suppliers_name ON demand_data.suppliers(supplier_
 """
 
 def create_data_schemas(cursor):
-    """Create both Spend and Demand data schemas"""
+    
     try:
-        # Create Spend Agent schema
+        
         cursor.execute(SPEND_SCHEMA_SQL)
         print("✅ Spend Agent schema created successfully")
 
-        # Create Demand Agent schema
+        
         cursor.execute(DEMAND_SCHEMA_SQL)
         print("✅ Demand Agent schema created successfully")
 

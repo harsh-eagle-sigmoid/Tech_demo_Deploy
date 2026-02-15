@@ -1,5 +1,7 @@
 
 import json
+# Trigger Hot Reload
+import os
 import requests as http
 import psycopg2
 from psycopg2 import pool
@@ -7,6 +9,7 @@ from contextlib import contextmanager
 import uuid
 from datetime import datetime
 import decimal
+import asyncio
 from fastapi import FastAPI, HTTPException, Query, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -20,48 +23,77 @@ from config.settings import settings
 from auth.azure_auth import get_current_user, require_auth, AuthUser
 from alerts.alert_service import alert_service, AlertType
 
-# ── FastAPI app ──────────────────────────────────────────────────────────────
 app = FastAPI(
-    title="Unilever Procurement GPT — API Gateway",
+    title="Unilever Procurement GPT — Observability Backend",
     version="2.0",
-    description="Unified gateway with AUTOMATED drift, error, and evaluation pipeline"
+    description="Centralized Observability & Monitoring System (Drift, Eval, Metrics)"
 )
 
-# ── CORS middleware ──────────────────────────────────────────────────────────
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],
+    allow_origins=os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173").split(","),
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
-# ── Agent base URLs (independent services) ──────────────────────────────────
+
 AGENT_URLS = {
     "spend":  "http://localhost:8001",
     "demand": "http://localhost:8002",
 }
 
 
-# ── Global caches (lazy loaded) ─────────────────────────────────────────────
+
 _drift_detector = None
 _error_classifier = None
 _ground_truth_cache = None
+_semantic_matcher = None
 db_pool = None
 
+
+
+
+
+from monitoring.baseline_manager import initialize_baseline_if_needed
+from evaluation.semantic_match import SemanticMatcher
+import evaluation.semantic_match
+
 @app.on_event("startup")
-def startup_event():
+async def startup_event():
     global db_pool
+    logger.info("Starting up...")
+    
+    
     try:
         db_pool = pool.SimpleConnectionPool(
             1, 20,
-            host=settings.DB_HOST, port=settings.DB_PORT,
-            database=settings.DB_NAME,
-            user=settings.DB_USER, password=settings.DB_PASSWORD
+            host=settings.DB_HOST, port=settings.DB_PORT, database=settings.DB_NAME, user=settings.DB_USER, password=settings.DB_PASSWORD
         )
+
         logger.info("DB Connection Pool initialized")
+        
+       
+        async def init_matcher():
+            try:
+                msg = "Initializing Semantic Matcher in background..."
+                logger.info(msg)
+                matcher = SemanticMatcher()
+                
+                await asyncio.to_thread(matcher.load_from_file, "data/ground_truth/test.json")
+                evaluation.semantic_match._matcher_instance = matcher
+                logger.info("Semantic Matcher background initialization complete.")
+            except Exception as e:
+                logger.error(f"Semantic Matcher initialization failed: {e}")
+
+        asyncio.create_task(init_matcher())
+        
+        
+        asyncio.create_task(asyncio.to_thread(initialize_baseline_if_needed))
+        
     except Exception as e:
-        logger.error(f"Failed to create DB pool: {e}")
+        logger.error(f"Startup failed: {e}")
 
 @app.on_event("shutdown")
 def shutdown_event():
@@ -71,7 +103,7 @@ def shutdown_event():
         logger.info("DB Connection Pool closed")
 
 def get_drift_detector():
-    """Lazy load drift detector (loads embedding model)."""
+
     global _drift_detector
     if _drift_detector is None:
         from monitoring.drift_detector import DriftDetector
@@ -80,7 +112,7 @@ def get_drift_detector():
     return _drift_detector
 
 def get_error_classifier():
-    """Lazy load error classifier."""
+    
     global _error_classifier
     if _error_classifier is None:
         from monitoring.error_classifier import ErrorClassifier
@@ -88,14 +120,22 @@ def get_error_classifier():
         logger.info("Error classifier initialized")
     return _error_classifier
 
+def get_semantic_matcher():
+    
+    global _semantic_matcher
+    if _semantic_matcher is None:
+        _semantic_matcher = SemanticMatcher()
+        logger.info("Semantic matcher initialized")
+    return _semantic_matcher
+
 def get_ground_truth():
-    """Load ground truth into cache for fast lookup."""
+    
     global _ground_truth_cache
     if _ground_truth_cache is None:
         try:
             with open("data/ground_truth/all_queries.json") as f:
                 gt_list = json.load(f)
-            # Index by normalized query text for lookup
+            
             _ground_truth_cache = {}
             for q in gt_list:
                 key = q["query_text"].strip().lower().rstrip("?.!")
@@ -106,18 +146,34 @@ def get_ground_truth():
                     "agent_type": q["agent_type"]
                 }
             logger.info(f"Ground truth loaded: {len(_ground_truth_cache)} queries")
+            
+            
+            matcher = get_semantic_matcher()
+            if not matcher.is_ready:
+                matcher.initialize(_ground_truth_cache)
         except Exception as e:
             logger.warning(f"Could not load ground truth: {e}")
             _ground_truth_cache = {}
     return _ground_truth_cache
 
 def lookup_ground_truth(query_text: str) -> Optional[Dict]:
-    """Find ground truth for a query (exact match on normalized text)."""
+    
     gt = get_ground_truth()
     key = query_text.strip().lower().rstrip("?.!")
-    return gt.get(key)
+    match = gt.get(key)
+    if match:
+        return match
+        
+    
+    matcher = get_semantic_matcher()
+    if matcher.is_ready:
+        semantic_match = matcher.find_match(query_text, threshold=0.85)
+        if semantic_match:
+            return semantic_match
+            
+    return None
 
-# ── DB helper ────────────────────────────────────────────────────────────────
+
 @contextmanager
 def get_db():
     conn = db_pool.getconn()
@@ -126,7 +182,7 @@ def get_db():
     finally:
         db_pool.putconn(conn)
 
-# ── Pydantic request models ──────────────────────────────────────────────────
+
 class QueryRequest(BaseModel):
     query:      str
     agent_type: str = Field(..., description="'spend' or 'demand'")
@@ -155,10 +211,50 @@ class SqlExecuteRequest(BaseModel):
     sql: str
     agent_type: str
 
-# ── Health ───────────────────────────────────────────────────────────────────
+class ContextRequest(BaseModel):
+    query: str
+    limit: int = 3
+
+
+@app.post("/api/v1/query")
+async def query_agent(req: QueryRequest, user: Optional[AuthUser] = Depends(get_current_user)):
+    
+    # 1. Check Ground Truth / Semantic Match (Optimization)
+    gt = lookup_ground_truth(req.query)
+    if gt:
+        logger.info(f"Ground truth match found for: {req.query}")
+        return {
+            "query": req.query,
+            "sql": gt["sql"],
+            "results": [], 
+            "status": "success",
+            "source": "ground_truth"
+        }
+
+    # 2. Forward to Agent
+    target_url = AGENT_URLS.get(req.agent_type)
+    if not target_url:
+        raise HTTPException(status_code=400, detail=f"Unknown agent type: {req.agent_type}")
+    
+    try:
+        # Forward the request to the agent
+        logger.info(f"Forwarding query to {req.agent_type} agent at {target_url}...")
+        resp = http.post(f"{target_url}/query", json={"query": req.query}, timeout=60)
+        
+        if resp.status_code != 200:
+            logger.error(f"Agent returned {resp.status_code}: {resp.text}")
+            raise HTTPException(status_code=resp.status_code, detail=f"Agent Error: {resp.text}")
+            
+        return resp.json()
+        
+    except http.exceptions.RequestException as e:
+        logger.error(f"Failed to reach agent: {e}")
+        raise HTTPException(status_code=503, detail="Agent Unavailable")
+
+
 @app.get("/health")
 def health():
-    """Gateway health + downstream agent status."""
+    
     status = {"gateway": "ok", "agents": {}, "automation": "enabled", "auth_enabled": settings.AUTH_ENABLED}
     for name, base in AGENT_URLS.items():
         try:
@@ -168,10 +264,10 @@ def health():
             status["agents"][name] = {"status": "down"}
     return status
 
-# ── Auth info ────────────────────────────────────────────────────────────────
+
 @app.get("/api/v1/auth/me")
 async def get_user_info(user: AuthUser = Depends(require_auth)):
-    """Get current authenticated user information."""
+    
     return {
         "authenticated": True,
         "sub": user.sub,
@@ -183,7 +279,7 @@ async def get_user_info(user: AuthUser = Depends(require_auth)):
 
 @app.get("/api/v1/auth/config")
 def get_auth_config():
-    """Get Azure AD configuration for frontend (public info only)."""
+    
     return {
         "auth_enabled": settings.AUTH_ENABLED,
         "tenant_id": settings.AZURE_AD_TENANT_ID if settings.AUTH_ENABLED else None,
@@ -192,197 +288,26 @@ def get_auth_config():
         "scopes": [f"api://{settings.AZURE_AD_CLIENT_ID}/access"] if settings.AUTH_ENABLED else []
     }
 
-# ══════════════════════════════════════════════════════════════════════════════
-# ██  AUTOMATED QUERY ENDPOINT                                                ██
-# ══════════════════════════════════════════════════════════════════════════════
-@app.post("/api/v1/query")
-async def route_query(req: QueryRequest, user: Optional[AuthUser] = Depends(get_current_user)):
-    """
-    AUTOMATED PIPELINE:
-    1. Call agent → get SQL + results
-    2. Auto drift detection → store in DB
-    3. Auto error classification (if error) → store in DB
-    4. Auto evaluation (if ground truth exists) → store in DB
-    5. Return response with all metrics
 
-    Protected by Azure AD when AUTH_ENABLED=true
-    """
-    if req.agent_type not in AGENT_URLS:
-        raise HTTPException(status_code=400, detail="agent_type must be 'spend' or 'demand'")
-
-    # Generate unique query ID for this request
-    query_id = f"LIVE-{req.agent_type.upper()}-{uuid.uuid4().hex[:8]}"
-
-    # Log initial query to DB
-    try:
-        with get_db() as conn:
-            cur = conn.cursor()
-            cur.execute("""
-                INSERT INTO monitoring.queries (query_id, query_text, agent_type, user_id, status)
-                VALUES (%s, %s, %s, %s, 'pending')
-            """, (query_id, req.query, req.agent_type, user.sub if user else None))
-            conn.commit()
-            cur.close()
-    except Exception as e:
-        logger.error(f"Failed to log query to DB: {e}")
-
-    response = {
-        "query_id": query_id,
-        "query": req.query,
-        "agent_type": req.agent_type,
-        "sql": None,
-        "results": [],
-        "status": "success",
-        "error": None,
-        # Automated metrics
-        "drift": None,
-        "error_classification": None,
-        "evaluation": None,
-        # User info (if authenticated)
-        "user": user.name if user else "anonymous"
-    }
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # STEP 1: Call Agent
-    # ─────────────────────────────────────────────────────────────────────────
-    base = AGENT_URLS[req.agent_type]
-    try:
-        agent_resp = http.post(f"{base}/query", json={"query": req.query}, timeout=30)
-        agent_resp.raise_for_status()
-        agent_data = agent_resp.json()
-
-        response["sql"] = agent_data.get("sql")
-        response["results"] = agent_data.get("results", [])
-        response["status"] = agent_data.get("status", "success")
-        response["error"] = agent_data.get("error")
-
-    except http.exceptions.Timeout:
-        response["status"] = "error"
-        response["error"] = "Agent timed out"
-        # ALERT: Agent timeout (potential system issue)
-        alert_service.alert_system_down(
-            service=f"{req.agent_type.capitalize()} Agent",
-            error="Agent request timed out after 30 seconds"
-        )
-    except Exception as e:
-        response["status"] = "error"
-        response["error"] = str(e)
-        # ALERT: Agent connection failure
-        if "Connection refused" in str(e) or "Connection error" in str(e):
-            alert_service.alert_system_down(
-                service=f"{req.agent_type.capitalize()} Agent",
-                error=str(e)
-            )
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # STEP 2: Auto Drift Detection (always runs)
-    # ─────────────────────────────────────────────────────────────────────────
+def process_ingest_background(query_id: str, req: IngestRequest):
+    
     try:
         drift_detector = get_drift_detector()
-        drift_result = drift_detector.detect(query_id, req.query, req.agent_type)
-        response["drift"] = {
-            "score": round(drift_result.get("drift_score", 0), 3),
-            "classification": drift_result.get("drift_classification", "unknown"),
-            "is_anomaly": drift_result.get("anomaly_flag", False)
-        }
-        logger.info(f"[{query_id}] Drift: {response['drift']['classification']} ({response['drift']['score']})")
-
-        # ALERT: Send email alert for high drift
-        if response["drift"]["classification"].lower() == "high":
+        result = drift_detector.detect(query_id, req.query_text, req.agent_type)
+        
+        # Trigger Alert on High Drift
+        if result.get("drift_classification") == "high":
+            logger.warning(f"High Drift Detected for {query_id}. Sending alert...")
             alert_service.alert_high_drift(
                 query_id=query_id,
-                query_text=req.query,
-                drift_score=response["drift"]["score"],
+                query_text=req.query_text,
+                drift_score=result["drift_score"],
                 agent_type=req.agent_type
             )
     except Exception as e:
-        logger.error(f"Drift detection failed: {e}")
-        response["drift"] = {"error": str(e)}
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # STEP 3: Auto Error Classification (if error occurred)
-    # ─────────────────────────────────────────────────────────────────────────
-    if response["status"] == "error" and response["error"]:
-        try:
-            error_classifier = get_error_classifier()
-            error_result = error_classifier.classify(
-                query_id=query_id,
-                query_text=req.query,
-                error_message=response["error"]
-            )
-            response["error_classification"] = {
-                "category": error_result.get("category", "UNKNOWN"),
-                "severity": error_result.get("severity", "medium"),
-                "suggested_fix": error_result.get("suggested_fix", "")
-            }
-            logger.info(f"[{query_id}] Error classified: {response['error_classification']['category']}")
-
-            # ALERT: Send email alert for critical errors
-            if response["error_classification"]["severity"].lower() == "critical":
-                alert_service.alert_critical_error(
-                    query_id=query_id,
-                    error_category=response["error_classification"]["category"],
-                    error_message=response["error"],
-                    agent_type=req.agent_type
-                )
-        except Exception as e:
-            logger.error(f"Error classification failed: {e}")
-            response["error_classification"] = {"error": str(e)}
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # STEP 4: Auto Evaluation (if ground truth exists for this query)
-    # ─────────────────────────────────────────────────────────────────────────
-    if response["sql"] and response["status"] == "success":
-        gt = lookup_ground_truth(req.query)
-        if gt:
-            try:
-                from evaluation.evaluator import Evaluator
-                evaluator = Evaluator(req.agent_type)
-                eval_result = evaluator.evaluate(
-                    query_id=query_id,
-                    query_text=req.query,
-                    generated_sql=response["sql"],
-                    ground_truth_sql=gt["sql"],
-                    complexity=gt["complexity"]
-                )
-                evaluator.store_result(eval_result)
-
-                response["evaluation"] = {
-                    "result": eval_result["final_result"],
-                    "score": round(eval_result["final_score"], 3),
-                    "confidence": round(eval_result["confidence"], 3),
-                    "scores": {
-                        "structural": round(eval_result["scores"].get("structural", 0), 3),
-                        "semantic": round(eval_result["scores"].get("semantic", 0), 3),
-                        "llm": round(eval_result["scores"].get("llm", 0), 3)
-                    },
-                    "ground_truth_id": gt["query_id"]
-                }
-                logger.info(f"[{query_id}] Evaluation: {response['evaluation']['result']} (score={response['evaluation']['score']})")
-            except Exception as e:
-                logger.error(f"Evaluation failed: {e}")
-                response["evaluation"] = {"error": str(e)}
-        else:
-            response["evaluation"] = {"status": "skipped", "reason": "no ground truth match"}
-
-    return response
-
-
-
-# ─────────────────────────────────────────────────────────────────────────
-# NEW: ASYNC TELEMETRY INGEST
-# ─────────────────────────────────────────────────────────────────────────
-
-def process_ingest_background(query_id: str, req: IngestRequest):
-    """Run heavy monitoring tasks in background to avoid blocking agents."""
-    # 2. Drift
-    try:
-        drift_detector = get_drift_detector()
-        drift_detector.detect(query_id, req.query_text, req.agent_type)
-    except Exception as e:
         logger.error(f"Drift check failed: {e}")
 
-    # 3. Error
+    
     if req.status == "error" and req.error:
         try:
             error_classifier = get_error_classifier()
@@ -390,56 +315,61 @@ def process_ingest_background(query_id: str, req: IngestRequest):
         except Exception as e:
             logger.error(f"Error classify failed: {e}")
 
-    # 4. Evaluation
+    
     if req.sql and req.status == "success":
-        gt = lookup_ground_truth(req.query_text)
-        if gt:
+        
+        try:
+            from evaluation.evaluator import Evaluator
+            evaluator = Evaluator(req.agent_type)
+            eval_result = evaluator.evaluate(
+                query_id=query_id,
+                query_text=req.query_text,
+                generated_sql=req.sql,
+                ground_truth_sql=None
+            )
+            evaluator.store_result(eval_result)
+        except Exception as e:
+            logger.error(f"Evaluation failed: {e}")
+            
             try:
-                from evaluation.evaluator import Evaluator
-                evaluator = Evaluator(req.agent_type)
-                eval_result = evaluator.evaluate(
-                    query_id=query_id,
-                    query_text=req.query_text,
-                    generated_sql=req.sql,
-                    ground_truth_sql=gt["sql"],
-                    complexity=gt["complexity"]
-                )
-                evaluator.store_result(eval_result)
-            except Exception as e:
-                logger.error(f"Evaluation failed: {e}")
+                error_classifier = get_error_classifier()
+                
+                error_classifier.classify(str(e), query_id)
+            except Exception as e2:
+                logger.error(f"Failed to classify error: {e2}")
 
 @app.post("/api/v1/monitor/ingest")
 async def ingest_telemetry(req: IngestRequest, background_tasks: BackgroundTasks):
-    """Receives async logs from independent agents."""
+    
     query_id = f"ASYNC-{req.agent_type.upper()}-{uuid.uuid4().hex[:8]}"
     logger.info(f"[{query_id}] Ingesting telemetry: {req.query_text}")
 
-    # 1. Log to DB (Sync, must happen now to reserve ID)
+    
     try:
         with get_db() as conn:
             cur = conn.cursor()
             cur.execute("""
-                INSERT INTO monitoring.queries (query_id, query_text, agent_type, status, generated_sql)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (query_id, req.query_text, req.agent_type, req.status, req.sql))
+                INSERT INTO monitoring.queries (query_id, query_text, agent_type, status, generated_sql, execution_time_ms)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (query_id, req.query_text, req.agent_type, req.status, req.sql, req.execution_time_ms))
             conn.commit()
             cur.close()
     except Exception as e:
         logger.error(f"DB Insert failed: {e}")
+        
+        raise HTTPException(status_code=500, detail=f"Database Ingest Failed: {str(e)}")
 
-    # Queue heavy tasks
+    
     background_tasks.add_task(process_ingest_background, query_id, req)
 
     return {"status": "ingested", "query_id": query_id}
 
-# ══════════════════════════════════════════════════════════════════════════════
-# ██  MANUAL ENDPOINTS (unchanged)                                            ██
-# ══════════════════════════════════════════════════════════════════════════════
 
-# ── POST /api/v1/evaluate ────────────────────────────────────────────────────
+
+
 @app.post("/api/v1/evaluate")
 async def evaluate(req: EvaluateRequest, user: Optional[AuthUser] = Depends(get_current_user)):
-    """Run the full 6-step evaluation pipeline manually."""
+    
     from evaluation.evaluator import Evaluator
 
     evaluator = Evaluator(req.agent_type)
@@ -461,10 +391,9 @@ async def evaluate(req: EvaluateRequest, user: Optional[AuthUser] = Depends(get_
         "reasoning":  result.get("steps", {}).get("llm_judge", {}).get("reasoning", "")
     }
 
-# ── POST /api/v1/debug/execute ──────────────────────────────────────────────
 @app.post("/api/v1/debug/execute")
 def execute_sql(req: SqlExecuteRequest):
-    """Execute SQL for debugging purposes."""
+    
     if not req.sql.strip().upper().startswith("SELECT"):
         raise HTTPException(status_code=400, detail="Only SELECT statements are allowed for debugging.")
 
@@ -492,40 +421,104 @@ def execute_sql(req: SqlExecuteRequest):
         finally:
             cur.close()
 
-# ── GET /api/v1/metrics ──────────────────────────────────────────────────────
+
 @app.get("/api/v1/metrics")
-def get_metrics():
-    """Overall + per-agent accuracy metrics from monitoring.evaluations."""
+def get_metrics(agent_type: Optional[str] = Query(None)):
+    
     with get_db() as conn:
         cur  = conn.cursor()
 
-        cur.execute("""
+        
+        where_eval = ""
+        where_query = "WHERE execution_time_ms IS NOT NULL"
+        params_eval = []
+        params_query = []
+        
+        if agent_type:
+            where_eval = "WHERE agent_type = %s"
+            where_query += " AND agent_type = %s"
+            params_eval = [agent_type]
+            params_query = [agent_type]
+
+        
+        cur.execute(f"""
             SELECT COUNT(*),
                    SUM(CASE WHEN result = 'PASS' THEN 1 ELSE 0 END),
                    AVG(final_score)
             FROM monitoring.evaluations
-        """)
+            {where_eval}
+        """, params_eval)
         total, passed, avg_score = cur.fetchone()
+        
+        
+        cur.execute(f"SELECT AVG(execution_time_ms) FROM monitoring.queries {where_query}", params_query)
+        row_global_lat = cur.fetchone()
+        avg_latency = row_global_lat[0] if row_global_lat and row_global_lat[0] else 0.0
+
         total  = total  or 0
         passed = passed or 0
 
-        cur.execute("""
+        
+        cur.execute(f"""
             SELECT agent_type,
                    COUNT(*),
                    SUM(CASE WHEN result = 'PASS' THEN 1 ELSE 0 END),
                    AVG(final_score)
             FROM monitoring.evaluations
+            {where_eval}
             GROUP BY agent_type
-        """)
+        """, params_eval)
+        
         per_agent = {}
-        for row in cur.fetchall():
+        eval_rows = cur.fetchall()
+        
+        for row in eval_rows:
+            agent = row[0]
             t, p = row[1], row[2] or 0
-            per_agent[row[0]] = {
+            
+            cur.execute("SELECT AVG(execution_time_ms) FROM monitoring.queries WHERE agent_type = %s AND execution_time_ms IS NOT NULL", (agent,))
+            row_lat = cur.fetchone()
+            agent_lat = row_lat[0] if row_lat and row_lat[0] else 0.0
+
+            per_agent[agent] = {
                 "total":    t,
                 "passed":   p,
                 "accuracy": round(p / t * 100, 1) if t else 0,
-                "avg_score": round(float(row[3]), 3) if row[3] else 0.0
+                "avg_score": round(float(row[3]), 3) if row[3] else 0.0,
+                "avg_latency": round(float(agent_lat), 1)
             }
+        
+        
+        where_trend = "WHERE q.created_at > NOW() - INTERVAL '7 days'"
+        params_trend = []
+        if agent_type:
+            where_trend += " AND q.agent_type = %s"
+            params_trend = [agent_type]
+
+        cur.execute(f"""
+            SELECT 
+                to_char(date_trunc('day', q.created_at), 'Mon DD') as time_str,
+                q.agent_type,
+                AVG(CASE WHEN e.result='PASS' THEN 100.0 ELSE 0.0 END) as acc
+            FROM monitoring.queries q
+            JOIN monitoring.evaluations e ON q.query_id = e.query_id
+            {where_trend}
+            GROUP BY 1, 2
+            ORDER BY min(q.created_at)
+        """, params_trend)
+        
+        
+        trend_map = {}
+        for row in cur.fetchall():
+            time_str, agent_typ, acc = row
+            if time_str not in trend_map:
+                trend_map[time_str] = {"time": time_str, "Spend": None, "Demand": None}
+            
+            
+            key = "Spend" if agent_typ == "spend" else "Demand"
+            trend_map[time_str][key] = round(float(acc), 1)
+            
+        trend_data = list(trend_map.values())
 
         cur.close()
 
@@ -535,21 +528,23 @@ def get_metrics():
             "passed":            passed,
             "failed":            total - passed,
             "accuracy":          round(passed / total * 100, 1) if total else 0,
-            "avg_score":         round(float(avg_score or 0), 3)
+            "avg_score":         round(float(avg_score or 0), 3),
+            "avg_latency":       round(float(avg_latency), 1)
         },
-        "per_agent": per_agent
+        "per_agent": per_agent,
+        "trend": trend_data
     }
 
-# ── GET /api/v1/drift ────────────────────────────────────────────────────────
+
 @app.get("/api/v1/drift")
 def get_drift(agent_type: Optional[str] = Query(None)):
-    """Drift distribution, anomaly count, and top high-drift samples."""
+    
     with get_db() as conn:
         cur  = conn.cursor()
 
         where, params = "", []
         if agent_type:
-            # Match 'LIVE-SPEND...' or 'ASYNC-SPEND...'
+            
             keyword = "SPEND" if agent_type.lower() == "spend" else "DEMAND"
             where  = " WHERE query_id LIKE %s"
             params = [f"%{keyword}%"]
@@ -587,27 +582,58 @@ def get_drift(agent_type: Optional[str] = Query(None)):
             for r in cur.fetchall()
         ]
 
+        # Trend Logic
+        cur.execute(f"""
+            SELECT date_trunc('day', q.created_at) as date, AVG(d.drift_score)
+            FROM monitoring.drift_monitoring d
+            JOIN monitoring.queries q ON d.query_id = q.query_id
+            {where.replace('query_id', 'd.query_id')}
+            GROUP BY 1
+            ORDER BY 1
+        """, params)
+        
+        trend = []
+        for row in cur.fetchall():
+            trend.append({
+                "date": row[0].strftime("%b %d") if row[0] else "Unknown",
+                "avg_score": round(float(row[1]), 3) if row[1] else 0.0
+            })
+
         cur.close()
 
     return {
         "distribution":      distribution,
         "total_anomalies":   anomalies,
-        "high_drift_samples": high_samples
+        "high_drift_samples": high_samples,
+        "trend":             trend
     }
 
-# ── GET /api/v1/errors ───────────────────────────────────────────────────────
+
 @app.get("/api/v1/errors")
-def get_errors(category: Optional[str] = Query(None), limit: int = Query(20)):
-    """Error summary grouped by category + recent errors list."""
+def get_errors(category: Optional[str] = Query(None), limit: int = Query(20), agent_type: Optional[str] = Query(None)):
+    
     with get_db() as conn:
         cur  = conn.cursor()
 
-        cur.execute("""
-            SELECT error_category, severity, COUNT(*)
-            FROM monitoring.errors
-            GROUP BY error_category, severity
-            ORDER BY error_category
-        """)
+        
+        summary_join = ""
+        summary_where = ""
+        summary_params = []
+        
+        if agent_type:
+            summary_join = "JOIN monitoring.queries q ON e.query_id = q.query_id"
+            summary_where = "WHERE q.agent_type = %s"
+            summary_params = [agent_type]
+
+        cur.execute(f"""
+            SELECT e.error_category, e.severity, COUNT(*)
+            FROM monitoring.errors e
+            {summary_join}
+            {summary_where}
+            GROUP BY e.error_category, e.severity
+            ORDER BY e.error_category
+        """, tuple(summary_params))
+        
         categories = {}
         for row in cur.fetchall():
             cat = row[0]
@@ -616,15 +642,26 @@ def get_errors(category: Optional[str] = Query(None), limit: int = Query(20)):
             categories[cat]["count"]            += row[2]
             categories[cat]["severities"][row[1]] = row[2]
 
+        
         q_sql = """
             SELECT e.query_id, e.error_category, e.error_message, e.severity, q.query_text
             FROM monitoring.errors e
             LEFT JOIN monitoring.queries q ON e.query_id = q.query_id
         """
         params = []
+        wheres = []
+        
         if category:
-            q_sql += " WHERE e.error_category = %s"
+            wheres.append("e.error_category = %s")
             params.append(category)
+        
+        if agent_type:
+            wheres.append("q.agent_type = %s")
+            params.append(agent_type)
+            
+        if wheres:
+            q_sql += " WHERE " + " AND ".join(wheres)
+            
         q_sql += " ORDER BY e.first_seen DESC LIMIT %s"
         params.append(limit)
         
@@ -648,10 +685,10 @@ def get_errors(category: Optional[str] = Query(None), limit: int = Query(20)):
         "recent_errors": recent
     }
 
-# ── GET /api/v1/errors/{category} ────────────────────────────────────────────
+
 @app.get("/api/v1/errors/{category}")
 def get_errors_by_category(category: str):
-    """All errors for a specific category with suggested fixes."""
+    
     with get_db() as conn:
         cur  = conn.cursor()
         cur.execute("""
@@ -673,14 +710,25 @@ def get_errors_by_category(category: str):
         cur.close()
     return {"category": category, "count": len(errors), "errors": errors}
 
-# ── GET /api/v1/history ────────────────────────────────────────────────────
+
 @app.get("/api/v1/history")
-def get_history(limit: int = 50):
-    """Get history of execution runs with evaluation and error details."""
+def get_history(limit: int = 50, agent_type: Optional[str] = Query(None)):
+    
     with get_db() as conn:
         cur = conn.cursor()
-        cur.execute("""
-            SELECT 
+        
+        where_clause = ""
+        params = []
+        if agent_type:
+            
+            where_clause = "WHERE LOWER(q.agent_type) = LOWER(%s)"
+            params.append(agent_type)
+        
+        
+        params.append(limit)
+
+        cur.execute(f"""
+            SELECT DISTINCT ON (q.created_at, q.query_id)
                 q.query_text,
                 e.result,
                 e.confidence,
@@ -694,9 +742,10 @@ def get_history(limit: int = 50):
             LEFT JOIN monitoring.evaluations e ON q.query_id = e.query_id
             LEFT JOIN monitoring.errors r ON q.query_id = r.query_id
             LEFT JOIN monitoring.drift_monitoring d ON q.query_id = d.query_id
-            ORDER BY q.created_at DESC
+            {where_clause}
+            ORDER BY q.created_at DESC, q.query_id
             LIMIT %s
-        """, (limit,))
+        """, tuple(params))
         
         rows = cur.fetchall()
         cur.close()
@@ -716,10 +765,10 @@ def get_history(limit: int = 50):
         })
     return history
 
-# ── POST /api/v1/baseline/update ─────────────────────────────────────────────
+
 @app.post("/api/v1/baseline/update")
 def update_baseline(req: BaselineUpdateRequest):
-    """Rebuild the drift-detection baseline for one agent."""
+    
     if req.agent_type not in ("spend", "demand"):
         raise HTTPException(status_code=400, detail="agent_type must be 'spend' or 'demand'")
 
@@ -728,17 +777,16 @@ def update_baseline(req: BaselineUpdateRequest):
     return {"status": "ok", "result": result}
 
 
-# ── GET /api/v1/alerts ───────────────────────────────────────────────────────
+
 @app.get("/api/v1/alerts")
 def get_alerts():
-    """Generate active alerts based on drift, accuracy, and errors."""
+    
     alerts = []
     
     with get_db() as conn:
         cur = conn.cursor()
 
-        # 1. EVALUATION ACCURACY CHECK
-        # Check last 50 evaluations. If accuracy < 90%, fire alert.
+        
         cur.execute("""
             SELECT AVG(final_score), COUNT(*) 
             FROM (SELECT final_score FROM monitoring.evaluations ORDER BY created_at DESC LIMIT 50) sub
@@ -757,9 +805,6 @@ def get_alerts():
                 "timestamp": datetime.now().isoformat()
              })
 
-        # 2. DRIFT CHECK
-        # Check for High Drift in last 24h (or last 50 queries)
-        # We join with queries to ensure we are looking at recent activity
         cur.execute("""
             SELECT COUNT(*) FROM monitoring.drift_monitoring d
             JOIN monitoring.queries q ON d.query_id = q.query_id
@@ -782,7 +827,129 @@ def get_alerts():
 
     return alerts
 
-# ── Entry point ──────────────────────────────────────────────────────────────
+@app.get("/api/v1/monitor/runs/{query_id}")
+def get_run_details(query_id: str):
+    
+    with get_db() as conn:
+        cur = conn.cursor()
+        
+       
+        cur.execute("""
+            SELECT 
+                q.query_id, q.query_text, q.agent_type, q.status, q.generated_sql as q_sql, q.created_at,
+                e.result, e.confidence, e.final_score, e.reasoning, e.generated_sql as e_sql, e.evaluation_data,
+                d.drift_score, d.drift_classification
+            FROM monitoring.queries q
+            LEFT JOIN monitoring.evaluations e ON q.query_id = e.query_id
+            LEFT JOIN monitoring.drift_monitoring d ON q.query_id = d.query_id
+            WHERE q.query_id = %s
+        """, (query_id,))
+        
+        row = cur.fetchone()
+        
+        if not row:
+             raise HTTPException(status_code=404, detail="Run not found")
+             
+        # Unwrap evaluation_data if exists
+        eval_data = row[11] if row[11] else {}
+        scores_breakdown = eval_data.get("scores", {})
+
+        data = {
+            "query_id": row[0],
+            "user_prompt": row[1],
+            "agent_type": row[2],
+            "status": row[3],
+            "generated_sql": row[10] if row[10] else row[4], 
+            "timestamp": row[5].isoformat() if row[5] else None,
+            "evaluation": {
+                "verdict": row[6] or "PENDING", 
+                "confidence": row[7] or 0.0,
+                "score": row[8] or 0.0,
+                "reasoning": row[9],
+                "scores": scores_breakdown
+            },
+            "drift": {
+                "score": row[12] if row[12] is not None else 0.0,
+                "status": row[13] or "unknown"
+            },
+            "intent": None 
+        }
+        
+    return data
+
+
+
+@app.post("/api/v1/context/retrieve")
+def retrieve_context(req: ContextRequest):
+    
+    matcher = get_semantic_matcher()
+    
+    
+    if not matcher.is_ready:
+        matcher.initialize(get_ground_truth())
+
+    if matcher.is_ready:
+        
+        match = matcher.find_match(req.query, threshold=0.5)
+        if match:
+            return {"examples": [match]}
+            
+    return {"examples": []}
+
+@app.get("/api/v1/agents/summary")
+def get_agents_summary():
+    
+    summary = []
+    
+    with get_db() as conn:
+        cur = conn.cursor()
+        
+    
+        agents = ["spend", "demand"]
+        
+        for agent in agents:
+            try:
+                
+                cur.execute("SELECT COUNT(*) FROM monitoring.queries WHERE agent_type = %s", (agent,))
+                total_reqs = cur.fetchone()[0]
+                
+                
+                cur.execute("""
+                    SELECT AVG(execution_time_ms) 
+                    FROM monitoring.queries 
+                    WHERE agent_type = %s AND execution_time_ms IS NOT NULL
+                """, (agent,))
+                row_lat = cur.fetchone()
+                avg_lat = row_lat[0] if row_lat and row_lat[0] else 0.0
+                
+                
+                cur.execute("""
+                    SELECT 
+                        count(*) filter (where result='PASS') * 100.0 / nullif(count(*), 0)
+                    FROM monitoring.evaluations 
+                    WHERE agent_type = %s
+                """, (agent,))
+                row_acc = cur.fetchone()
+                accuracy = row_acc[0] if row_acc and row_acc[0] else 0.0
+                
+                status = "Healthy" 
+                if accuracy < 80 and total_reqs > 5: status = "Degraded"
+
+                summary.append({
+                    "id": agent,
+                    "name": f"{agent.capitalize()} GPT",
+                    "description": "Spend analytics and supplier intelligence" if agent == 'spend' else "Demand forecasting and market analytics",
+                    "status": status,
+                    "accuracy": round(float(accuracy), 1),
+                    "requests": total_reqs,
+                    "latency_s": round(float(avg_lat) / 1000.0, 2)
+                })
+            except Exception as e:
+                logger.error(f"Summary failed for {agent}: {e}")
+                
+    return summary
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host=settings.API_HOST, port=settings.API_PORT)

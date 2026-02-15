@@ -1,6 +1,4 @@
-"""
-Load CSV data into PostgreSQL database
-"""
+
 import pandas as pd
 import psycopg2
 from loguru import logger
@@ -9,31 +7,31 @@ from database.schemas import create_data_schemas
 
 
 def load_superstore_data():
-    """Load SuperStoreOrders.csv into Spend Agent tables"""
+    
     try:
         logger.info("Loading SuperStoreOrders.csv...")
 
-        # Read CSV
-        df = pd.read_csv('SuperStoreOrders.csv', encoding='latin1')
-        # Remove BOM from first column if present
+        
+        df = pd.read_csv('data/SuperStoreOrders.csv', encoding='latin1')
+        
         df.columns = [col.replace('ï»¿', '') for col in df.columns]
         logger.info(f"Loaded {len(df)} rows from SuperStoreOrders.csv")
 
-        # Clean numeric columns - remove commas
+        
         numeric_cols = ['sales', 'quantity', 'discount', 'profit', 'shipping_cost']
         for col in numeric_cols:
             if col in df.columns:
                 df[col] = df[col].astype(str).str.replace(',', '').astype(float)
 
-        # Parse dates with mixed formats
+        
         df['order_date'] = pd.to_datetime(df['order_date'], format='mixed', dayfirst=False)
         df['ship_date'] = pd.to_datetime(df['ship_date'], format='mixed', dayfirst=False)
 
-        # Add year column if not present
+        
         if 'year' not in df.columns:
             df['year'] = df['order_date'].dt.year
 
-        # Connect to database
+        
         conn = psycopg2.connect(
             host=settings.DB_HOST,
             port=settings.DB_PORT,
@@ -43,7 +41,7 @@ def load_superstore_data():
         )
         cursor = conn.cursor()
 
-        # Create unique customers
+        
         logger.info("Inserting customers...")
         customers = df[['customer_name', 'segment', 'state', 'country', 'market', 'region']].drop_duplicates()
 
@@ -60,7 +58,7 @@ def load_superstore_data():
 
         logger.info(f"Inserted {len(customer_map)} unique customers")
 
-        # Create unique products
+        
         logger.info("Inserting products...")
         products = df[['product_id', 'product_name', 'category', 'sub_category']].drop_duplicates()
 
@@ -73,7 +71,7 @@ def load_superstore_data():
 
         logger.info(f"Inserted {len(products)} unique products")
 
-        # Insert orders
+        
         logger.info("Inserting orders...")
         order_count = 0
         for idx, row in df.iterrows():
@@ -111,15 +109,15 @@ def load_superstore_data():
 
 
 def load_supply_chain_data():
-    """Load supply_chain_data.csv into Demand Agent tables"""
+    
     try:
         logger.info("Loading supply_chain_data.csv...")
 
-        # Read CSV
-        df = pd.read_csv('supply_chain_data.csv')
+        
+        df = pd.read_csv('data/supply_chain_data.csv')
         logger.info(f"Loaded {len(df)} rows from supply_chain_data.csv")
 
-        # Connect to database
+        
         conn = psycopg2.connect(
             host=settings.DB_HOST,
             port=settings.DB_PORT,
@@ -129,7 +127,7 @@ def load_supply_chain_data():
         )
         cursor = conn.cursor()
 
-        # Insert products
+        
         logger.info("Inserting products...")
         for idx, row in df.iterrows():
             cursor.execute("""
@@ -143,7 +141,7 @@ def load_supply_chain_data():
 
         logger.info(f"Inserted {len(df)} products")
 
-        # Insert suppliers
+        
         logger.info("Inserting suppliers...")
         suppliers = df[['Supplier name', 'Location', 'Lead time', 'Shipping carriers', 'Transportation modes', 'Routes']].drop_duplicates()
         supplier_map = {}
@@ -163,7 +161,7 @@ def load_supply_chain_data():
 
         logger.info(f"Inserted {len(supplier_map)} unique suppliers")
 
-        # Insert sales
+        
         logger.info("Inserting sales...")
         for idx, row in df.iterrows():
             cursor.execute("""
@@ -176,7 +174,7 @@ def load_supply_chain_data():
 
         logger.info(f"Inserted {len(df)} sales records")
 
-        # Insert supply chain data
+        
         logger.info("Inserting supply chain data...")
         for idx, row in df.iterrows():
             supplier_id = supplier_map[row['Supplier name']]
@@ -210,10 +208,10 @@ def load_supply_chain_data():
 
 
 def main():
-    """Main data loading function"""
+    
     logger.info("Starting data loading process...")
 
-    # Connect to database
+    
     try:
         conn = psycopg2.connect(
             host=settings.DB_HOST,
@@ -224,7 +222,7 @@ def main():
         )
         cursor = conn.cursor()
 
-        # Create data schemas
+        
         logger.info("Creating data table schemas...")
         if create_data_schemas(cursor):
             conn.commit()
@@ -240,12 +238,12 @@ def main():
         logger.error(f"❌ Error creating schemas: {e}")
         return False
 
-    # Load SuperStore data
+    
     if not load_superstore_data():
         logger.error("❌ Failed to load SuperStore data")
         return False
 
-    # Load supply chain data
+    
     if not load_supply_chain_data():
         logger.error("❌ Failed to load supply chain data")
         return False

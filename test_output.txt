@@ -1,0 +1,49 @@
+Testing Heuristic Evaluation (Reference-Free)...
+Initialized Azure OpenAI client with model: gpt-4o-harshal
+Initialized LLM Judge with provider: azure
+Initialized StructuralLayer for schema: spend_data
+Loading embedding model via ModelLoader (Bedrock/Local)...
+Initializing AWS Bedrock Model: amazon.titan-embed-text-v2:0...
+Bedrock Embedding Client initialized (Region: eu-north-1, Model: amazon.titan-embed-text-v2:0)
+Embedding model loaded
+Initialized Evaluator for spend agent
+Query: Show me the highest sales product
+Evaluating query test_heuristic_1: Show me the highest sales product...
+Initializing Semantic Matcher with 142 queries...
+Testing Heuristic Evaluation (Reference-Free)...
+Initialized Azure OpenAI client with model: gpt-4o-harshal
+Initialized LLM Judge with provider: azure
+Initialized StructuralLayer for schema: spend_data
+Loading embedding model via ModelLoader (Bedrock/Local)...
+Initializing AWS Bedrock Model: amazon.titan-embed-text-v2:0...
+Bedrock Embedding Client initialized (Region: eu-north-1, Model: amazon.titan-embed-text-v2:0)
+Embedding model loaded
+Initialized Evaluator for spend agent
+Query: Show me the highest sales product
+Evaluating query test_heuristic_1: Show me the highest sales product...
+Initializing Semantic Matcher with 142 queries...
+Semantic Matcher initialized successfully.
+Evaluator could not find Ground Truth for: Show me the highest sales product
+Step 2: Structural validation for test_heuristic_1
+Query test_heuristic_1: No Ground Truth. Switching to Heuristic Evaluation.
+Starting Heuristic Evaluation for query: Show me the highest sales product...
+Error calculating drift in DriftLayer: DriftDetector.detect() missing 2 required positional arguments: 'query_text' and 'agent_type'
+Heuristic Evaluation Complete. Status: PASS, Score: 0.90, Confidence: 0.45
+Error storing evaluation result: insert or update on table "evaluations" violates foreign key constraint "evaluations_query_id_fkey"
+DETAIL:  Key (query_id)=(test_heuristic_1) is not present in table "queries".
+
+Result: PASS (Score: 0.9)
+Breakdown: {'structural': 1.0, 'intent': 1.0, 'pattern': 1.0, 'drift_quality': 0.5}
+Test 1 Passed!
+
+Testing Invalid SQL...
+Evaluating query test_heuristic_fail: show me magic...
+Evaluator could not find Ground Truth for: show me magic
+Step 2: Structural validation for test_heuristic_fail
+SQL syntax validation failed: relation "non_existent_table" does not exist
+LINE 1: EXPLAIN SELECT magic_column FROM non_existent_table
+                                         ^
+
+Query test_heuristic_fail failed structural validation
+Result: FAIL (Score: 0.0)
+Test 2 Passed (Correctly Failed Structural)!

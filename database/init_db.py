@@ -1,7 +1,4 @@
-"""
-Database initialization script
-Creates database, extensions, schemas, and tables
-"""
+
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from loguru import logger
@@ -10,20 +7,20 @@ from config.settings import settings
 
 
 def create_database():
-    """Create database if it doesn't exist"""
+    
     try:
-        # Connect to PostgreSQL server
+       
         conn = psycopg2.connect(
             host=settings.DB_HOST,
             port=settings.DB_PORT,
             user=settings.DB_USER,
             password=settings.DB_PASSWORD,
-            database="postgres"  # Connect to default database
+            database="postgres"  
         )
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         cursor = conn.cursor()
 
-        # Check if database exists
+        
         cursor.execute(
             "SELECT 1 FROM pg_database WHERE datname = %s",
             (settings.DB_NAME,)
@@ -46,7 +43,7 @@ def create_database():
 
 
 def install_extensions():
-    """Install required PostgreSQL extensions"""
+   
     try:
         conn = psycopg2.connect(
             host=settings.DB_HOST,
@@ -57,7 +54,7 @@ def install_extensions():
         )
         cursor = conn.cursor()
 
-        # Install pgvector extension
+        
         cursor.execute("CREATE EXTENSION IF NOT EXISTS vector;")
         conn.commit()
         logger.info("pgvector extension installed")
@@ -72,7 +69,7 @@ def install_extensions():
 
 
 def create_schemas():
-    """Create database schemas"""
+    
     schemas = [
         "spend_data",
         "demand_data",
@@ -104,7 +101,7 @@ def create_schemas():
 
 
 def create_monitoring_tables():
-    """Create monitoring framework tables"""
+    
 
     monitoring_tables = """
     -- Drop tables if they exist to apply schema changes
@@ -221,22 +218,22 @@ def create_monitoring_tables():
 
 
 def initialize_database():
-    """Complete database initialization"""
+    
     logger.info("Starting database initialization...")
 
-    # Step 1: Create database
+    
     if not create_database():
         return False
 
-    # Step 2: Install extensions
+    
     if not install_extensions():
         return False
 
-    # Step 3: Create schemas
+    
     if not create_schemas():
         return False
 
-    # Step 4: Create monitoring tables
+    
     if not create_monitoring_tables():
         return False
 
@@ -245,10 +242,10 @@ def initialize_database():
 
 
 if __name__ == "__main__":
-    # Configure logger
+    
     logger.add("logs/database_init.log", rotation="10 MB")
 
-    # Initialize database
+    
     success = initialize_database()
 
     if success:

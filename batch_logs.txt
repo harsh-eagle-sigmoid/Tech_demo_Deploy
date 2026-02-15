@@ -1,0 +1,479 @@
+00:48:42 | INFO     | __main__:run_batch:15 - Starting Batch Evaluation of 10 Queries...
+00:48:42 | INFO     | agents.llm_client:__init__:24 - Initialized Azure OpenAI client with model: gpt-4o-harshal
+00:48:42 | INFO     | evaluation.llm_judge:__init__:14 - Initialized LLM Judge with provider: azure
+00:48:42 | INFO     | evaluation.layers.structural:__init__:13 - Initialized StructuralLayer for schema: spend_data
+00:48:42 | INFO     | monitoring.drift_detector:__init__:29 - Loading embedding model via ModelLoader (Bedrock/Local)...
+00:48:42 | INFO     | monitoring.model_loader:get_embedding_model:70 - Initializing AWS Bedrock Model: amazon.titan-embed-text-v2:0...
+00:48:42 | INFO     | monitoring.model_loader:__init__:25 - Bedrock Embedding Client initialized (Region: eu-north-1, Model: amazon.titan-embed-text-v2:0)
+00:48:42 | INFO     | monitoring.drift_detector:__init__:33 - Embedding model loaded
+00:48:42 | INFO     | evaluation.evaluator:__init__:33 - Initialized Evaluator for spend agent
+00:48:42 | INFO     | __main__:run_batch:92 - 
+--- Running Query q1: 'Show me the top 5 highest sales products' ---
+00:48:42 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q1: Show me the top 5 highest sales products...
+00:48:42 | INFO     | evaluation.semantic_match:initialize:43 - Initializing Semantic Matcher with 142 queries...
+00:49:58 | INFO     | evaluation.semantic_match:initialize:64 - Semantic Matcher initialized successfully.
+00:49:59 | INFO     | evaluation.semantic_match:find_match:93 - Semantic Match Found: 'Show me the top 5 highest sales products' -> 'What are the top 5 products by sales?' (Score: 0.881)
+00:49:59 | INFO     | evaluation.evaluator:evaluate:82 - Evaluator found GT: SELECT p.product_name, SUM(o.s...
+00:49:59 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q1
+00:49:59 | DEBUG    | evaluation.evaluator:evaluate:157 - Step 3: Semantic check for q1
+00:49:59 | DEBUG    | evaluation.evaluator:evaluate:166 - Step 4: LLM evaluation for q1
+00:50:02 | DEBUG    | evaluation.evaluator:evaluate:180 - Step 5: Final scoring for q1
+00:50:02 | INFO     | evaluation.evaluator:evaluate:193 - Query q1 evaluation complete: FAIL (score: 0.40)
+00:50:02 | INFO     | __main__:run_batch:110 - Query q1 Result: FAIL | Score: 0.40 | Time: 80.36s
+00:50:02 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 1.0, 'semantic': 0.35, 'llm': 0.0}
+00:50:02 | INFO     | __main__:run_batch:114 - Reasoning: N/A
+00:50:02 | INFO     | __main__:run_batch:92 - 
+--- Running Query q2: 'List all product categories' ---
+00:50:02 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q2: List all product categories...
+00:50:03 | WARNING  | evaluation.evaluator:evaluate:84 - Evaluator could not find Ground Truth for: List all product categories
+00:50:03 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q2
+00:50:03 | INFO     | evaluation.evaluator:evaluate:124 - Query q2: No Ground Truth. Switching to Heuristic Evaluation.
+00:50:03 | INFO     | evaluation.layers.manager:evaluate_heuristic:47 - Starting Heuristic Evaluation for query: List all product categories...
+00:50:03 | ERROR    | evaluation.layers.drift:evaluate:38 - Error calculating drift in DriftLayer: DriftDetector.detect() missing 2 required positional arguments: 'query_text' and 'agent_type'
+00:50:03 | INFO     | evaluation.layers.manager:evaluate_heuristic:78 - Heuristic Evaluation Complete. Status: PASS, Score: 0.90, Confidence: 0.45
+00:50:03 | ERROR    | evaluation.evaluator:store_result:268 - Error storing evaluation result: insert or update on table "evaluations" violates foreign key constraint "evaluations_query_id_fkey"
+DETAIL:  Key (query_id)=(q2) is not present in table "queries".
+
+00:50:03 | INFO     | __main__:run_batch:110 - Query q2 Result: PASS | Score: 0.90 | Time: 0.67s
+00:50:03 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 1.0, 'intent': 1.0, 'pattern': 1.0, 'drift_quality': 0.5}
+00:50:03 | INFO     | __main__:run_batch:114 - Reasoning: Reference-Free Heuristic Evaluation
+00:50:03 | INFO     | __main__:run_batch:92 - 
+--- Running Query q3: 'Show me magic data' ---
+00:50:03 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q3: Show me magic data...
+00:50:03 | WARNING  | evaluation.evaluator:evaluate:84 - Evaluator could not find Ground Truth for: Show me magic data
+00:50:03 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q3
+00:50:03 | WARNING  | evaluation.validators:validate_syntax:76 - SQL syntax validation failed: relation "magic_table" does not exist
+LINE 1: EXPLAIN SELECT * FROM magic_table
+                              ^
+
+00:50:03 | WARNING  | evaluation.evaluator:evaluate:119 - Query q3 failed structural validation
+00:50:03 | INFO     | __main__:run_batch:110 - Query q3 Result: FAIL | Score: 0.00 | Time: 0.65s
+00:50:03 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 0.0}
+00:50:03 | INFO     | __main__:run_batch:114 - Reasoning: N/A
+00:50:03 | INFO     | __main__:run_batch:92 - 
+--- Running Query q4: 'Show me vendor rating' ---
+00:50:03 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q4: Show me vendor rating...
+00:50:04 | WARNING  | evaluation.evaluator:evaluate:84 - Evaluator could not find Ground Truth for: Show me vendor rating
+00:50:04 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q4
+00:50:04 | WARNING  | evaluation.validators:validate_syntax:76 - SQL syntax validation failed: column "vendor_rating" does not exist
+LINE 1: EXPLAIN SELECT vendor_rating FROM spend_data.orders
+                       ^
+
+00:50:04 | WARNING  | evaluation.evaluator:evaluate:119 - Query q4 failed structural validation
+00:50:04 | INFO     | __main__:run_batch:110 - Query q4 Result: FAIL | Score: 0.00 | Time: 0.62s
+00:50:04 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 0.0}
+00:50:04 | INFO     | __main__:run_batch:114 - Reasoning: N/A
+00:50:04 | INFO     | __main__:run_batch:92 - 
+--- Running Query q5: 'What is the maximum profit?' ---
+00:50:04 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q5: What is the maximum profit?...
+00:50:05 | WARNING  | evaluation.evaluator:evaluate:84 - Evaluator could not find Ground Truth for: What is the maximum profit?
+00:50:05 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q5
+00:50:05 | INFO     | evaluation.evaluator:evaluate:124 - Query q5: No Ground Truth. Switching to Heuristic Evaluation.
+00:50:05 | INFO     | evaluation.layers.manager:evaluate_heuristic:47 - Starting Heuristic Evaluation for query: What is the maximum profit?...
+00:50:05 | ERROR    | evaluation.layers.drift:evaluate:38 - Error calculating drift in DriftLayer: DriftDetector.detect() missing 2 required positional arguments: 'query_text' and 'agent_type'
+00:50:05 | INFO     | evaluation.layers.manager:evaluate_heuristic:78 - Heuristic Evaluation Complete. Status: PASS, Score: 0.90, Confidence: 0.45
+00:50:05 | ERROR    | evaluation.evaluator:store_result:268 - Error storing evaluation result: insert or update on table "evaluations" violates foreign key constraint "evaluations_query_id_fkey"
+DETAIL:  Key (query_id)=(q5) is not present in table "queries".
+
+00:50:05 | INFO     | __main__:run_batch:110 - Query q5 Result: PASS | Score: 0.90 | Time: 0.66s
+00:50:05 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 1.0, 'intent': 1.0, 'pattern': 1.0, 'drift_quality': 0.5}
+00:50:05 | INFO     | __main__:run_batch:114 - Reasoning: Reference-Free Heuristic Evaluation
+00:50:05 | INFO     | __main__:run_batch:92 - 
+--- Running Query q6: 'What is the maximum profit?' ---
+00:50:05 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q6: What is the maximum profit?...
+00:50:05 | WARNING  | evaluation.evaluator:evaluate:84 - Evaluator could not find Ground Truth for: What is the maximum profit?
+00:50:05 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q6
+00:50:05 | INFO     | evaluation.evaluator:evaluate:124 - Query q6: No Ground Truth. Switching to Heuristic Evaluation.
+00:50:05 | INFO     | evaluation.layers.manager:evaluate_heuristic:47 - Starting Heuristic Evaluation for query: What is the maximum profit?...
+00:50:05 | DEBUG    | evaluation.layers.intent:evaluate:63 - Intent Mismatch: Query asked for maximization (keywords: ['highest', 'maximum', 'max', 'peak', 'top', 'most']) but SQL missing ['MAX', 'DESC']
+00:50:05 | DEBUG    | evaluation.layers.pattern:evaluate:55 - Pattern Analysis Found Issues: ['LIMIT used without ORDER BY (Non-deterministic)']
+00:50:05 | ERROR    | evaluation.layers.drift:evaluate:38 - Error calculating drift in DriftLayer: DriftDetector.detect() missing 2 required positional arguments: 'query_text' and 'agent_type'
+00:50:05 | INFO     | evaluation.layers.manager:evaluate_heuristic:78 - Heuristic Evaluation Complete. Status: FAIL, Score: 0.59, Confidence: 0.29
+00:50:05 | ERROR    | evaluation.evaluator:store_result:268 - Error storing evaluation result: insert or update on table "evaluations" violates foreign key constraint "evaluations_query_id_fkey"
+DETAIL:  Key (query_id)=(q6) is not present in table "queries".
+
+00:50:05 | INFO     | __main__:run_batch:110 - Query q6 Result: FAIL | Score: 0.59 | Time: 0.76s
+00:50:05 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 1.0, 'intent': 0.0, 'pattern': 0.7, 'drift_quality': 0.5}
+00:50:05 | INFO     | __main__:run_batch:114 - Reasoning: Reference-Free Heuristic Evaluation
+00:50:05 | INFO     | __main__:run_batch:92 - 
+--- Running Query q7: 'Download all orders' ---
+00:50:06 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q7: Download all orders...
+00:50:06 | WARNING  | evaluation.evaluator:evaluate:84 - Evaluator could not find Ground Truth for: Download all orders
+00:50:06 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q7
+00:50:06 | INFO     | evaluation.evaluator:evaluate:124 - Query q7: No Ground Truth. Switching to Heuristic Evaluation.
+00:50:06 | INFO     | evaluation.layers.manager:evaluate_heuristic:47 - Starting Heuristic Evaluation for query: Download all orders...
+00:50:06 | ERROR    | evaluation.layers.drift:evaluate:38 - Error calculating drift in DriftLayer: DriftDetector.detect() missing 2 required positional arguments: 'query_text' and 'agent_type'
+00:50:06 | INFO     | evaluation.layers.manager:evaluate_heuristic:78 - Heuristic Evaluation Complete. Status: PASS, Score: 0.90, Confidence: 0.45
+00:50:06 | ERROR    | evaluation.evaluator:store_result:268 - Error storing evaluation result: insert or update on table "evaluations" violates foreign key constraint "evaluations_query_id_fkey"
+DETAIL:  Key (query_id)=(q7) is not present in table "queries".
+
+00:50:06 | INFO     | __main__:run_batch:110 - Query q7 Result: PASS | Score: 0.90 | Time: 0.67s
+00:50:06 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 1.0, 'intent': 1.0, 'pattern': 1.0, 'drift_quality': 0.5}
+00:50:06 | INFO     | __main__:run_batch:114 - Reasoning: Reference-Free Heuristic Evaluation
+00:50:06 | INFO     | __main__:run_batch:92 - 
+--- Running Query q8: 'Give me any 5 orders' ---
+00:50:06 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q8: Give me any 5 orders...
+00:50:07 | WARNING  | evaluation.evaluator:evaluate:84 - Evaluator could not find Ground Truth for: Give me any 5 orders
+00:50:07 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q8
+00:50:07 | INFO     | evaluation.evaluator:evaluate:124 - Query q8: No Ground Truth. Switching to Heuristic Evaluation.
+00:50:07 | INFO     | evaluation.layers.manager:evaluate_heuristic:47 - Starting Heuristic Evaluation for query: Give me any 5 orders...
+00:50:07 | DEBUG    | evaluation.layers.pattern:evaluate:55 - Pattern Analysis Found Issues: ['LIMIT used without ORDER BY (Non-deterministic)']
+00:50:07 | ERROR    | evaluation.layers.drift:evaluate:38 - Error calculating drift in DriftLayer: DriftDetector.detect() missing 2 required positional arguments: 'query_text' and 'agent_type'
+00:50:07 | INFO     | evaluation.layers.manager:evaluate_heuristic:78 - Heuristic Evaluation Complete. Status: PASS, Score: 0.84, Confidence: 0.42
+00:50:08 | ERROR    | evaluation.evaluator:store_result:268 - Error storing evaluation result: insert or update on table "evaluations" violates foreign key constraint "evaluations_query_id_fkey"
+DETAIL:  Key (query_id)=(q8) is not present in table "queries".
+
+00:50:08 | INFO     | __main__:run_batch:110 - Query q8 Result: PASS | Score: 0.84 | Time: 1.34s
+00:50:08 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 1.0, 'intent': 1.0, 'pattern': 0.7, 'drift_quality': 0.5}
+00:50:08 | INFO     | __main__:run_batch:114 - Reasoning: Reference-Free Heuristic Evaluation
+00:50:08 | INFO     | __main__:run_batch:92 - 
+--- Running Query q9: 'Show monthly sales for 2023' ---
+00:50:08 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q9: Show monthly sales for 2023...
+00:50:08 | WARNING  | evaluation.evaluator:evaluate:84 - Evaluator could not find Ground Truth for: Show monthly sales for 2023
+00:50:08 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q9
+00:50:08 | INFO     | evaluation.evaluator:evaluate:124 - Query q9: No Ground Truth. Switching to Heuristic Evaluation.
+00:50:08 | INFO     | evaluation.layers.manager:evaluate_heuristic:47 - Starting Heuristic Evaluation for query: Show monthly sales for 2023...
+00:50:08 | ERROR    | evaluation.layers.drift:evaluate:38 - Error calculating drift in DriftLayer: DriftDetector.detect() missing 2 required positional arguments: 'query_text' and 'agent_type'
+00:50:09 | INFO     | evaluation.layers.manager:evaluate_heuristic:78 - Heuristic Evaluation Complete. Status: PASS, Score: 0.90, Confidence: 0.45
+00:50:09 | ERROR    | evaluation.evaluator:store_result:268 - Error storing evaluation result: insert or update on table "evaluations" violates foreign key constraint "evaluations_query_id_fkey"
+DETAIL:  Key (query_id)=(q9) is not present in table "queries".
+
+00:50:09 | INFO     | __main__:run_batch:110 - Query q9 Result: PASS | Score: 0.90 | Time: 1.01s
+00:50:09 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 1.0, 'intent': 1.0, 'pattern': 1.0, 'drift_quality': 0.5}
+00:50:09 | INFO     | __main__:run_batch:114 - Reasoning: Reference-Free Heuristic Evaluation
+00:50:09 | INFO     | __main__:run_batch:92 - 
+--- Running Query q10: 'asdf jkl;' ---
+00:50:09 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q10: asdf jkl;...
+00:50:09 | WARNING  | evaluation.evaluator:evaluate:84 - Evaluator could not find Ground Truth for: asdf jkl;
+00:50:09 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q10
+00:50:09 | INFO     | evaluation.evaluator:evaluate:124 - Query q10: No Ground Truth. Switching to Heuristic Evaluation.
+00:50:09 | INFO     | evaluation.layers.manager:evaluate_heuristic:47 - Starting Heuristic Evaluation for query: asdf jkl;...
+00:50:09 | DEBUG    | evaluation.layers.pattern:evaluate:55 - Pattern Analysis Found Issues: ['LIMIT used without ORDER BY (Non-deterministic)']
+00:50:09 | ERROR    | evaluation.layers.drift:evaluate:38 - Error calculating drift in DriftLayer: DriftDetector.detect() missing 2 required positional arguments: 'query_text' and 'agent_type'
+00:50:09 | INFO     | evaluation.layers.manager:evaluate_heuristic:78 - Heuristic Evaluation Complete. Status: PASS, Score: 0.84, Confidence: 0.42
+00:50:09 | ERROR    | evaluation.evaluator:store_result:268 - Error storing evaluation result: insert or update on table "evaluations" violates foreign key constraint "evaluations_query_id_fkey"
+DETAIL:  Key (query_id)=(q10) is not present in table "queries".
+
+00:50:09 | INFO     | __main__:run_batch:110 - Query q10 Result: PASS | Score: 0.84 | Time: 0.72s
+00:50:09 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 1.0, 'intent': 1.0, 'pattern': 0.7, 'drift_quality': 0.5}
+00:50:09 | INFO     | __main__:run_batch:114 - Reasoning: Reference-Free Heuristic Evaluation
+00:51:12 | INFO     | __main__:run_batch:15 - Starting Batch Evaluation of 10 Queries...
+00:51:12 | INFO     | agents.llm_client:__init__:24 - Initialized Azure OpenAI client with model: gpt-4o-harshal
+00:51:12 | INFO     | evaluation.llm_judge:__init__:14 - Initialized LLM Judge with provider: azure
+00:51:12 | INFO     | evaluation.layers.structural:__init__:13 - Initialized StructuralLayer for schema: spend_data
+00:51:12 | INFO     | monitoring.drift_detector:__init__:29 - Loading embedding model via ModelLoader (Bedrock/Local)...
+00:51:12 | INFO     | monitoring.model_loader:get_embedding_model:70 - Initializing AWS Bedrock Model: amazon.titan-embed-text-v2:0...
+00:51:13 | INFO     | monitoring.model_loader:__init__:25 - Bedrock Embedding Client initialized (Region: eu-north-1, Model: amazon.titan-embed-text-v2:0)
+00:51:13 | INFO     | monitoring.drift_detector:__init__:33 - Embedding model loaded
+00:51:13 | INFO     | evaluation.evaluator:__init__:33 - Initialized Evaluator for spend agent
+00:51:13 | INFO     | __main__:run_batch:92 - 
+--- Running Query q1: 'Show me the top 5 highest sales products' ---
+00:51:13 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q1: Show me the top 5 highest sales products...
+00:51:13 | INFO     | evaluation.semantic_match:initialize:43 - Initializing Semantic Matcher with 142 queries...
+00:52:26 | INFO     | __main__:run_batch:15 - Starting Batch Evaluation of 10 Queries...
+00:52:26 | INFO     | agents.llm_client:__init__:24 - Initialized Azure OpenAI client with model: gpt-4o-harshal
+00:52:26 | INFO     | evaluation.llm_judge:__init__:14 - Initialized LLM Judge with provider: azure
+00:52:26 | INFO     | evaluation.layers.structural:__init__:13 - Initialized StructuralLayer for schema: spend_data
+00:52:26 | INFO     | monitoring.drift_detector:__init__:29 - Loading embedding model via ModelLoader (Bedrock/Local)...
+00:52:26 | INFO     | monitoring.model_loader:get_embedding_model:70 - Initializing AWS Bedrock Model: amazon.titan-embed-text-v2:0...
+00:52:27 | INFO     | monitoring.model_loader:__init__:25 - Bedrock Embedding Client initialized (Region: eu-north-1, Model: amazon.titan-embed-text-v2:0)
+00:52:27 | INFO     | monitoring.drift_detector:__init__:33 - Embedding model loaded
+00:52:27 | INFO     | evaluation.evaluator:__init__:33 - Initialized Evaluator for spend agent
+00:52:27 | INFO     | __main__:run_batch:92 - 
+--- Running Query q1: 'Show me the top 5 highest sales products' ---
+00:52:27 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q1: Show me the top 5 highest sales products...
+00:52:27 | INFO     | evaluation.semantic_match:initialize:43 - Initializing Semantic Matcher with 142 queries...
+00:52:29 | INFO     | evaluation.semantic_match:initialize:64 - Semantic Matcher initialized successfully.
+00:52:31 | INFO     | evaluation.semantic_match:find_match:93 - Semantic Match Found: 'Show me the top 5 highest sales products' -> 'What are the top 5 products by sales?' (Score: 0.881)
+00:52:31 | INFO     | evaluation.evaluator:evaluate:82 - Evaluator found GT: SELECT p.product_name, SUM(o.s...
+00:52:31 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q1
+00:52:31 | DEBUG    | evaluation.evaluator:evaluate:157 - Step 3: Semantic check for q1
+00:52:31 | DEBUG    | evaluation.evaluator:evaluate:166 - Step 4: LLM evaluation for q1
+00:52:33 | DEBUG    | evaluation.evaluator:evaluate:180 - Step 5: Final scoring for q1
+00:52:33 | INFO     | evaluation.evaluator:evaluate:193 - Query q1 evaluation complete: PASS (score: 0.80)
+00:52:33 | INFO     | __main__:run_batch:110 - Query q1 Result: PASS | Score: 0.80 | Time: 80.44s
+00:52:33 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 1.0, 'semantic': 0.35, 'llm': 1.0}
+00:52:33 | INFO     | __main__:run_batch:114 - Reasoning: N/A
+00:52:33 | INFO     | __main__:run_batch:92 - 
+--- Running Query q2: 'List all product categories' ---
+00:52:33 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q2: List all product categories...
+00:52:34 | WARNING  | evaluation.evaluator:evaluate:84 - Evaluator could not find Ground Truth for: List all product categories
+00:52:34 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q2
+00:52:34 | INFO     | evaluation.evaluator:evaluate:124 - Query q2: No Ground Truth. Switching to Heuristic Evaluation.
+00:52:34 | INFO     | evaluation.layers.manager:evaluate_heuristic:47 - Starting Heuristic Evaluation for query: List all product categories...
+00:52:34 | ERROR    | evaluation.layers.drift:evaluate:38 - Error calculating drift in DriftLayer: DriftDetector.detect() missing 2 required positional arguments: 'query_text' and 'agent_type'
+00:52:34 | INFO     | evaluation.layers.manager:evaluate_heuristic:78 - Heuristic Evaluation Complete. Status: PASS, Score: 0.90, Confidence: 0.45
+00:52:34 | ERROR    | evaluation.evaluator:store_result:268 - Error storing evaluation result: insert or update on table "evaluations" violates foreign key constraint "evaluations_query_id_fkey"
+DETAIL:  Key (query_id)=(q2) is not present in table "queries".
+
+00:52:34 | INFO     | __main__:run_batch:110 - Query q2 Result: PASS | Score: 0.90 | Time: 0.71s
+00:52:34 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 1.0, 'intent': 1.0, 'pattern': 1.0, 'drift_quality': 0.5}
+00:52:34 | INFO     | __main__:run_batch:114 - Reasoning: Reference-Free Heuristic Evaluation
+00:52:34 | INFO     | __main__:run_batch:92 - 
+--- Running Query q3: 'Show me magic data' ---
+00:52:34 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q3: Show me magic data...
+00:52:34 | WARNING  | evaluation.evaluator:evaluate:84 - Evaluator could not find Ground Truth for: Show me magic data
+00:52:34 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q3
+00:52:34 | WARNING  | evaluation.validators:validate_syntax:76 - SQL syntax validation failed: relation "magic_table" does not exist
+LINE 1: EXPLAIN SELECT * FROM magic_table
+                              ^
+
+00:52:34 | WARNING  | evaluation.evaluator:evaluate:119 - Query q3 failed structural validation
+00:52:34 | INFO     | __main__:run_batch:110 - Query q3 Result: FAIL | Score: 0.00 | Time: 0.59s
+00:52:34 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 0.0}
+00:52:34 | INFO     | __main__:run_batch:114 - Reasoning: N/A
+00:52:34 | INFO     | __main__:run_batch:92 - 
+--- Running Query q4: 'Show me vendor rating' ---
+00:52:34 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q4: Show me vendor rating...
+00:52:35 | WARNING  | evaluation.evaluator:evaluate:84 - Evaluator could not find Ground Truth for: Show me vendor rating
+00:52:35 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q4
+00:52:35 | WARNING  | evaluation.validators:validate_syntax:76 - SQL syntax validation failed: column "vendor_rating" does not exist
+LINE 1: EXPLAIN SELECT vendor_rating FROM spend_data.orders
+                       ^
+
+00:52:35 | WARNING  | evaluation.evaluator:evaluate:119 - Query q4 failed structural validation
+00:52:35 | INFO     | __main__:run_batch:110 - Query q4 Result: FAIL | Score: 0.00 | Time: 0.57s
+00:52:35 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 0.0}
+00:52:35 | INFO     | __main__:run_batch:114 - Reasoning: N/A
+00:52:35 | INFO     | __main__:run_batch:92 - 
+--- Running Query q5: 'What is the maximum profit?' ---
+00:52:35 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q5: What is the maximum profit?...
+00:52:36 | WARNING  | evaluation.evaluator:evaluate:84 - Evaluator could not find Ground Truth for: What is the maximum profit?
+00:52:36 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q5
+00:52:36 | INFO     | evaluation.evaluator:evaluate:124 - Query q5: No Ground Truth. Switching to Heuristic Evaluation.
+00:52:36 | INFO     | evaluation.layers.manager:evaluate_heuristic:47 - Starting Heuristic Evaluation for query: What is the maximum profit?...
+00:52:36 | ERROR    | evaluation.layers.drift:evaluate:38 - Error calculating drift in DriftLayer: DriftDetector.detect() missing 2 required positional arguments: 'query_text' and 'agent_type'
+00:52:36 | INFO     | evaluation.layers.manager:evaluate_heuristic:78 - Heuristic Evaluation Complete. Status: PASS, Score: 0.90, Confidence: 0.45
+00:52:36 | ERROR    | evaluation.evaluator:store_result:268 - Error storing evaluation result: insert or update on table "evaluations" violates foreign key constraint "evaluations_query_id_fkey"
+DETAIL:  Key (query_id)=(q5) is not present in table "queries".
+
+00:52:36 | INFO     | __main__:run_batch:110 - Query q5 Result: PASS | Score: 0.90 | Time: 0.92s
+00:52:36 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 1.0, 'intent': 1.0, 'pattern': 1.0, 'drift_quality': 0.5}
+00:52:36 | INFO     | __main__:run_batch:114 - Reasoning: Reference-Free Heuristic Evaluation
+00:52:36 | INFO     | __main__:run_batch:92 - 
+--- Running Query q6: 'What is the maximum profit?' ---
+00:52:36 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q6: What is the maximum profit?...
+00:52:37 | WARNING  | evaluation.evaluator:evaluate:84 - Evaluator could not find Ground Truth for: What is the maximum profit?
+00:52:37 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q6
+00:52:37 | INFO     | evaluation.evaluator:evaluate:124 - Query q6: No Ground Truth. Switching to Heuristic Evaluation.
+00:52:37 | INFO     | evaluation.layers.manager:evaluate_heuristic:47 - Starting Heuristic Evaluation for query: What is the maximum profit?...
+00:52:37 | DEBUG    | evaluation.layers.intent:evaluate:63 - Intent Mismatch: Query asked for maximization (keywords: ['highest', 'maximum', 'max', 'peak', 'top', 'most']) but SQL missing ['MAX', 'DESC']
+00:52:37 | DEBUG    | evaluation.layers.pattern:evaluate:63 - Pattern Analysis Found Issues: ['LIMIT used without ORDER BY (Non-deterministic)']
+00:52:37 | ERROR    | evaluation.layers.drift:evaluate:38 - Error calculating drift in DriftLayer: DriftDetector.detect() missing 2 required positional arguments: 'query_text' and 'agent_type'
+00:52:37 | INFO     | evaluation.layers.manager:evaluate_heuristic:78 - Heuristic Evaluation Complete. Status: FAIL, Score: 0.59, Confidence: 0.29
+00:52:37 | ERROR    | evaluation.evaluator:store_result:268 - Error storing evaluation result: insert or update on table "evaluations" violates foreign key constraint "evaluations_query_id_fkey"
+DETAIL:  Key (query_id)=(q6) is not present in table "queries".
+
+00:52:37 | INFO     | __main__:run_batch:110 - Query q6 Result: FAIL | Score: 0.59 | Time: 0.92s
+00:52:37 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 1.0, 'intent': 0.0, 'pattern': 0.7, 'drift_quality': 0.5}
+00:52:37 | INFO     | __main__:run_batch:114 - Reasoning: Reference-Free Heuristic Evaluation
+00:52:37 | INFO     | __main__:run_batch:92 - 
+--- Running Query q7: 'Download all orders' ---
+00:52:37 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q7: Download all orders...
+00:52:38 | WARNING  | evaluation.evaluator:evaluate:84 - Evaluator could not find Ground Truth for: Download all orders
+00:52:38 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q7
+00:52:38 | INFO     | evaluation.evaluator:evaluate:124 - Query q7: No Ground Truth. Switching to Heuristic Evaluation.
+00:52:38 | INFO     | evaluation.layers.manager:evaluate_heuristic:47 - Starting Heuristic Evaluation for query: Download all orders...
+00:52:38 | DEBUG    | evaluation.layers.pattern:evaluate:63 - Pattern Analysis Found Issues: ['SELECT * used without LIMIT (Performance Risk)']
+00:52:38 | ERROR    | evaluation.layers.drift:evaluate:38 - Error calculating drift in DriftLayer: DriftDetector.detect() missing 2 required positional arguments: 'query_text' and 'agent_type'
+00:52:38 | INFO     | evaluation.layers.manager:evaluate_heuristic:78 - Heuristic Evaluation Complete. Status: PASS, Score: 0.86, Confidence: 0.43
+00:52:38 | ERROR    | evaluation.evaluator:store_result:268 - Error storing evaluation result: insert or update on table "evaluations" violates foreign key constraint "evaluations_query_id_fkey"
+DETAIL:  Key (query_id)=(q7) is not present in table "queries".
+
+00:52:38 | INFO     | __main__:run_batch:110 - Query q7 Result: PASS | Score: 0.86 | Time: 0.94s
+00:52:38 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 1.0, 'intent': 1.0, 'pattern': 0.8, 'drift_quality': 0.5}
+00:52:38 | INFO     | __main__:run_batch:114 - Reasoning: Reference-Free Heuristic Evaluation
+00:52:38 | INFO     | __main__:run_batch:92 - 
+--- Running Query q8: 'Give me any 5 orders' ---
+00:52:38 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q8: Give me any 5 orders...
+00:52:39 | WARNING  | evaluation.evaluator:evaluate:84 - Evaluator could not find Ground Truth for: Give me any 5 orders
+00:52:39 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q8
+00:52:39 | INFO     | evaluation.evaluator:evaluate:124 - Query q8: No Ground Truth. Switching to Heuristic Evaluation.
+00:52:39 | INFO     | evaluation.layers.manager:evaluate_heuristic:47 - Starting Heuristic Evaluation for query: Give me any 5 orders...
+00:52:39 | DEBUG    | evaluation.layers.pattern:evaluate:63 - Pattern Analysis Found Issues: ['LIMIT used without ORDER BY (Non-deterministic)']
+00:52:39 | ERROR    | evaluation.layers.drift:evaluate:38 - Error calculating drift in DriftLayer: DriftDetector.detect() missing 2 required positional arguments: 'query_text' and 'agent_type'
+00:52:39 | INFO     | evaluation.layers.manager:evaluate_heuristic:78 - Heuristic Evaluation Complete. Status: PASS, Score: 0.84, Confidence: 0.42
+00:52:39 | ERROR    | evaluation.evaluator:store_result:268 - Error storing evaluation result: insert or update on table "evaluations" violates foreign key constraint "evaluations_query_id_fkey"
+DETAIL:  Key (query_id)=(q8) is not present in table "queries".
+
+00:52:39 | INFO     | __main__:run_batch:110 - Query q8 Result: PASS | Score: 0.84 | Time: 0.94s
+00:52:39 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 1.0, 'intent': 1.0, 'pattern': 0.7, 'drift_quality': 0.5}
+00:52:39 | INFO     | __main__:run_batch:114 - Reasoning: Reference-Free Heuristic Evaluation
+00:52:39 | INFO     | __main__:run_batch:92 - 
+--- Running Query q9: 'Show monthly sales for 2023' ---
+00:52:39 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q9: Show monthly sales for 2023...
+00:52:39 | WARNING  | evaluation.evaluator:evaluate:84 - Evaluator could not find Ground Truth for: Show monthly sales for 2023
+00:52:39 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q9
+00:52:39 | INFO     | evaluation.evaluator:evaluate:124 - Query q9: No Ground Truth. Switching to Heuristic Evaluation.
+00:52:39 | INFO     | evaluation.layers.manager:evaluate_heuristic:47 - Starting Heuristic Evaluation for query: Show monthly sales for 2023...
+00:52:39 | ERROR    | evaluation.layers.drift:evaluate:38 - Error calculating drift in DriftLayer: DriftDetector.detect() missing 2 required positional arguments: 'query_text' and 'agent_type'
+00:52:39 | INFO     | evaluation.layers.manager:evaluate_heuristic:78 - Heuristic Evaluation Complete. Status: PASS, Score: 0.90, Confidence: 0.45
+00:52:39 | ERROR    | evaluation.evaluator:store_result:268 - Error storing evaluation result: insert or update on table "evaluations" violates foreign key constraint "evaluations_query_id_fkey"
+DETAIL:  Key (query_id)=(q9) is not present in table "queries".
+
+00:52:40 | INFO     | __main__:run_batch:110 - Query q9 Result: PASS | Score: 0.90 | Time: 0.81s
+00:52:40 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 1.0, 'intent': 1.0, 'pattern': 1.0, 'drift_quality': 0.5}
+00:52:40 | INFO     | __main__:run_batch:114 - Reasoning: Reference-Free Heuristic Evaluation
+00:52:40 | INFO     | __main__:run_batch:92 - 
+--- Running Query q10: 'asdf jkl;' ---
+00:52:40 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q10: asdf jkl;...
+00:52:40 | WARNING  | evaluation.evaluator:evaluate:84 - Evaluator could not find Ground Truth for: asdf jkl;
+00:52:40 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q10
+00:52:40 | INFO     | evaluation.evaluator:evaluate:124 - Query q10: No Ground Truth. Switching to Heuristic Evaluation.
+00:52:40 | INFO     | evaluation.layers.manager:evaluate_heuristic:47 - Starting Heuristic Evaluation for query: asdf jkl;...
+00:52:40 | DEBUG    | evaluation.layers.pattern:evaluate:63 - Pattern Analysis Found Issues: ['LIMIT used without ORDER BY (Non-deterministic)']
+00:52:40 | ERROR    | evaluation.layers.drift:evaluate:38 - Error calculating drift in DriftLayer: DriftDetector.detect() missing 2 required positional arguments: 'query_text' and 'agent_type'
+00:52:40 | INFO     | evaluation.layers.manager:evaluate_heuristic:78 - Heuristic Evaluation Complete. Status: PASS, Score: 0.84, Confidence: 0.42
+00:52:40 | ERROR    | evaluation.evaluator:store_result:268 - Error storing evaluation result: insert or update on table "evaluations" violates foreign key constraint "evaluations_query_id_fkey"
+DETAIL:  Key (query_id)=(q10) is not present in table "queries".
+
+00:52:40 | INFO     | __main__:run_batch:110 - Query q10 Result: PASS | Score: 0.84 | Time: 0.60s
+00:52:40 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 1.0, 'intent': 1.0, 'pattern': 0.7, 'drift_quality': 0.5}
+00:52:40 | INFO     | __main__:run_batch:114 - Reasoning: Reference-Free Heuristic Evaluation
+00:53:16 | INFO     | evaluation.semantic_match:initialize:64 - Semantic Matcher initialized successfully.
+00:53:17 | INFO     | evaluation.semantic_match:find_match:93 - Semantic Match Found: 'Show me the top 5 highest sales products' -> 'What are the top 5 products by sales?' (Score: 0.881)
+00:53:17 | INFO     | evaluation.evaluator:evaluate:82 - Evaluator found GT: SELECT p.product_name, SUM(o.s...
+00:53:17 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q1
+00:53:17 | DEBUG    | evaluation.evaluator:evaluate:157 - Step 3: Semantic check for q1
+00:53:17 | DEBUG    | evaluation.evaluator:evaluate:166 - Step 4: LLM evaluation for q1
+00:53:22 | DEBUG    | evaluation.evaluator:evaluate:180 - Step 5: Final scoring for q1
+00:53:22 | INFO     | evaluation.evaluator:evaluate:193 - Query q1 evaluation complete: PASS (score: 0.80)
+00:53:22 | INFO     | __main__:run_batch:110 - Query q1 Result: PASS | Score: 0.80 | Time: 55.23s
+00:53:22 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 1.0, 'semantic': 0.35, 'llm': 1.0}
+00:53:22 | INFO     | __main__:run_batch:114 - Reasoning: N/A
+00:53:22 | INFO     | __main__:run_batch:92 - 
+--- Running Query q2: 'List all product categories' ---
+00:53:22 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q2: List all product categories...
+00:53:22 | WARNING  | evaluation.evaluator:evaluate:84 - Evaluator could not find Ground Truth for: List all product categories
+00:53:22 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q2
+00:53:22 | INFO     | evaluation.evaluator:evaluate:124 - Query q2: No Ground Truth. Switching to Heuristic Evaluation.
+00:53:22 | INFO     | evaluation.layers.manager:evaluate_heuristic:47 - Starting Heuristic Evaluation for query: List all product categories...
+00:53:22 | ERROR    | evaluation.layers.drift:evaluate:38 - Error calculating drift in DriftLayer: DriftDetector.detect() missing 2 required positional arguments: 'query_text' and 'agent_type'
+00:53:22 | INFO     | evaluation.layers.manager:evaluate_heuristic:78 - Heuristic Evaluation Complete. Status: PASS, Score: 0.90, Confidence: 0.45
+00:53:22 | ERROR    | evaluation.evaluator:store_result:268 - Error storing evaluation result: insert or update on table "evaluations" violates foreign key constraint "evaluations_query_id_fkey"
+DETAIL:  Key (query_id)=(q2) is not present in table "queries".
+
+00:53:22 | INFO     | __main__:run_batch:110 - Query q2 Result: PASS | Score: 0.90 | Time: 0.36s
+00:53:22 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 1.0, 'intent': 1.0, 'pattern': 1.0, 'drift_quality': 0.5}
+00:53:22 | INFO     | __main__:run_batch:114 - Reasoning: Reference-Free Heuristic Evaluation
+00:53:22 | INFO     | __main__:run_batch:92 - 
+--- Running Query q3: 'Show me magic data' ---
+00:53:22 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q3: Show me magic data...
+00:53:22 | WARNING  | evaluation.evaluator:evaluate:84 - Evaluator could not find Ground Truth for: Show me magic data
+00:53:22 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q3
+00:53:23 | WARNING  | evaluation.validators:validate_syntax:76 - SQL syntax validation failed: relation "magic_table" does not exist
+LINE 1: EXPLAIN SELECT * FROM magic_table
+                              ^
+
+00:53:23 | WARNING  | evaluation.evaluator:evaluate:119 - Query q3 failed structural validation
+00:53:23 | INFO     | __main__:run_batch:110 - Query q3 Result: FAIL | Score: 0.00 | Time: 0.33s
+00:53:23 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 0.0}
+00:53:23 | INFO     | __main__:run_batch:114 - Reasoning: N/A
+00:53:23 | INFO     | __main__:run_batch:92 - 
+--- Running Query q4: 'Show me vendor rating' ---
+00:53:23 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q4: Show me vendor rating...
+00:53:23 | WARNING  | evaluation.evaluator:evaluate:84 - Evaluator could not find Ground Truth for: Show me vendor rating
+00:53:23 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q4
+00:53:23 | WARNING  | evaluation.validators:validate_syntax:76 - SQL syntax validation failed: column "vendor_rating" does not exist
+LINE 1: EXPLAIN SELECT vendor_rating FROM spend_data.orders
+                       ^
+
+00:53:23 | WARNING  | evaluation.evaluator:evaluate:119 - Query q4 failed structural validation
+00:53:23 | INFO     | __main__:run_batch:110 - Query q4 Result: FAIL | Score: 0.00 | Time: 0.32s
+00:53:23 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 0.0}
+00:53:23 | INFO     | __main__:run_batch:114 - Reasoning: N/A
+00:53:23 | INFO     | __main__:run_batch:92 - 
+--- Running Query q5: 'What is the maximum profit?' ---
+00:53:23 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q5: What is the maximum profit?...
+00:53:23 | WARNING  | evaluation.evaluator:evaluate:84 - Evaluator could not find Ground Truth for: What is the maximum profit?
+00:53:23 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q5
+00:53:23 | INFO     | evaluation.evaluator:evaluate:124 - Query q5: No Ground Truth. Switching to Heuristic Evaluation.
+00:53:23 | INFO     | evaluation.layers.manager:evaluate_heuristic:47 - Starting Heuristic Evaluation for query: What is the maximum profit?...
+00:53:23 | ERROR    | evaluation.layers.drift:evaluate:38 - Error calculating drift in DriftLayer: DriftDetector.detect() missing 2 required positional arguments: 'query_text' and 'agent_type'
+00:53:23 | INFO     | evaluation.layers.manager:evaluate_heuristic:78 - Heuristic Evaluation Complete. Status: PASS, Score: 0.90, Confidence: 0.45
+00:53:23 | ERROR    | evaluation.evaluator:store_result:268 - Error storing evaluation result: insert or update on table "evaluations" violates foreign key constraint "evaluations_query_id_fkey"
+DETAIL:  Key (query_id)=(q5) is not present in table "queries".
+
+00:53:23 | INFO     | __main__:run_batch:110 - Query q5 Result: PASS | Score: 0.90 | Time: 0.36s
+00:53:23 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 1.0, 'intent': 1.0, 'pattern': 1.0, 'drift_quality': 0.5}
+00:53:23 | INFO     | __main__:run_batch:114 - Reasoning: Reference-Free Heuristic Evaluation
+00:53:23 | INFO     | __main__:run_batch:92 - 
+--- Running Query q6: 'What is the maximum profit?' ---
+00:53:23 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q6: What is the maximum profit?...
+00:53:24 | WARNING  | evaluation.evaluator:evaluate:84 - Evaluator could not find Ground Truth for: What is the maximum profit?
+00:53:24 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q6
+00:53:24 | INFO     | evaluation.evaluator:evaluate:124 - Query q6: No Ground Truth. Switching to Heuristic Evaluation.
+00:53:24 | INFO     | evaluation.layers.manager:evaluate_heuristic:47 - Starting Heuristic Evaluation for query: What is the maximum profit?...
+00:53:24 | DEBUG    | evaluation.layers.intent:evaluate:63 - Intent Mismatch: Query asked for maximization (keywords: ['highest', 'maximum', 'max', 'peak', 'top', 'most']) but SQL missing ['MAX', 'DESC']
+00:53:24 | DEBUG    | evaluation.layers.pattern:evaluate:62 - Pattern Analysis Found Issues: ['LIMIT used without ORDER BY (Non-deterministic)']
+00:53:24 | ERROR    | evaluation.layers.drift:evaluate:38 - Error calculating drift in DriftLayer: DriftDetector.detect() missing 2 required positional arguments: 'query_text' and 'agent_type'
+00:53:24 | INFO     | evaluation.layers.manager:evaluate_heuristic:78 - Heuristic Evaluation Complete. Status: FAIL, Score: 0.59, Confidence: 0.29
+00:53:24 | ERROR    | evaluation.evaluator:store_result:268 - Error storing evaluation result: insert or update on table "evaluations" violates foreign key constraint "evaluations_query_id_fkey"
+DETAIL:  Key (query_id)=(q6) is not present in table "queries".
+
+00:53:24 | INFO     | __main__:run_batch:110 - Query q6 Result: FAIL | Score: 0.59 | Time: 0.38s
+00:53:24 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 1.0, 'intent': 0.0, 'pattern': 0.7, 'drift_quality': 0.5}
+00:53:24 | INFO     | __main__:run_batch:114 - Reasoning: Reference-Free Heuristic Evaluation
+00:53:24 | INFO     | __main__:run_batch:92 - 
+--- Running Query q7: 'Download all orders' ---
+00:53:24 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q7: Download all orders...
+00:53:24 | WARNING  | evaluation.evaluator:evaluate:84 - Evaluator could not find Ground Truth for: Download all orders
+00:53:24 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q7
+00:53:24 | INFO     | evaluation.evaluator:evaluate:124 - Query q7: No Ground Truth. Switching to Heuristic Evaluation.
+00:53:24 | INFO     | evaluation.layers.manager:evaluate_heuristic:47 - Starting Heuristic Evaluation for query: Download all orders...
+00:53:24 | DEBUG    | evaluation.layers.pattern:evaluate:62 - Pattern Analysis Found Issues: ['SELECT * used without LIMIT (Performance Risk)']
+00:53:24 | ERROR    | evaluation.layers.drift:evaluate:38 - Error calculating drift in DriftLayer: DriftDetector.detect() missing 2 required positional arguments: 'query_text' and 'agent_type'
+00:53:24 | INFO     | evaluation.layers.manager:evaluate_heuristic:78 - Heuristic Evaluation Complete. Status: PASS, Score: 0.86, Confidence: 0.43
+00:53:24 | ERROR    | evaluation.evaluator:store_result:268 - Error storing evaluation result: insert or update on table "evaluations" violates foreign key constraint "evaluations_query_id_fkey"
+DETAIL:  Key (query_id)=(q7) is not present in table "queries".
+
+00:53:24 | INFO     | __main__:run_batch:110 - Query q7 Result: PASS | Score: 0.86 | Time: 0.39s
+00:53:24 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 1.0, 'intent': 1.0, 'pattern': 0.8, 'drift_quality': 0.5}
+00:53:24 | INFO     | __main__:run_batch:114 - Reasoning: Reference-Free Heuristic Evaluation
+00:53:24 | INFO     | __main__:run_batch:92 - 
+--- Running Query q8: 'Give me any 5 orders' ---
+00:53:24 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q8: Give me any 5 orders...
+00:53:24 | WARNING  | evaluation.evaluator:evaluate:84 - Evaluator could not find Ground Truth for: Give me any 5 orders
+00:53:24 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q8
+00:53:24 | INFO     | evaluation.evaluator:evaluate:124 - Query q8: No Ground Truth. Switching to Heuristic Evaluation.
+00:53:24 | INFO     | evaluation.layers.manager:evaluate_heuristic:47 - Starting Heuristic Evaluation for query: Give me any 5 orders...
+00:53:24 | DEBUG    | evaluation.layers.pattern:evaluate:62 - Pattern Analysis Found Issues: ['LIMIT used without ORDER BY (Non-deterministic)']
+00:53:24 | ERROR    | evaluation.layers.drift:evaluate:38 - Error calculating drift in DriftLayer: DriftDetector.detect() missing 2 required positional arguments: 'query_text' and 'agent_type'
+00:53:24 | INFO     | evaluation.layers.manager:evaluate_heuristic:78 - Heuristic Evaluation Complete. Status: PASS, Score: 0.84, Confidence: 0.42
+00:53:24 | ERROR    | evaluation.evaluator:store_result:268 - Error storing evaluation result: insert or update on table "evaluations" violates foreign key constraint "evaluations_query_id_fkey"
+DETAIL:  Key (query_id)=(q8) is not present in table "queries".
+
+00:53:24 | INFO     | __main__:run_batch:110 - Query q8 Result: PASS | Score: 0.84 | Time: 0.41s
+00:53:24 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 1.0, 'intent': 1.0, 'pattern': 0.7, 'drift_quality': 0.5}
+00:53:24 | INFO     | __main__:run_batch:114 - Reasoning: Reference-Free Heuristic Evaluation
+00:53:24 | INFO     | __main__:run_batch:92 - 
+--- Running Query q9: 'Show monthly sales for 2023' ---
+00:53:24 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q9: Show monthly sales for 2023...
+00:53:25 | WARNING  | evaluation.evaluator:evaluate:84 - Evaluator could not find Ground Truth for: Show monthly sales for 2023
+00:53:25 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q9
+00:53:25 | INFO     | evaluation.evaluator:evaluate:124 - Query q9: No Ground Truth. Switching to Heuristic Evaluation.
+00:53:25 | INFO     | evaluation.layers.manager:evaluate_heuristic:47 - Starting Heuristic Evaluation for query: Show monthly sales for 2023...
+00:53:25 | ERROR    | evaluation.layers.drift:evaluate:38 - Error calculating drift in DriftLayer: DriftDetector.detect() missing 2 required positional arguments: 'query_text' and 'agent_type'
+00:53:25 | INFO     | evaluation.layers.manager:evaluate_heuristic:78 - Heuristic Evaluation Complete. Status: PASS, Score: 0.90, Confidence: 0.45
+00:53:25 | ERROR    | evaluation.evaluator:store_result:268 - Error storing evaluation result: insert or update on table "evaluations" violates foreign key constraint "evaluations_query_id_fkey"
+DETAIL:  Key (query_id)=(q9) is not present in table "queries".
+
+00:53:25 | INFO     | __main__:run_batch:110 - Query q9 Result: PASS | Score: 0.90 | Time: 0.68s
+00:53:25 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 1.0, 'intent': 1.0, 'pattern': 1.0, 'drift_quality': 0.5}
+00:53:25 | INFO     | __main__:run_batch:114 - Reasoning: Reference-Free Heuristic Evaluation
+00:53:25 | INFO     | __main__:run_batch:92 - 
+--- Running Query q10: 'asdf jkl;' ---
+00:53:25 | INFO     | evaluation.evaluator:evaluate:69 - Evaluating query q10: asdf jkl;...
+00:53:26 | WARNING  | evaluation.evaluator:evaluate:84 - Evaluator could not find Ground Truth for: asdf jkl;
+00:53:26 | DEBUG    | evaluation.evaluator:evaluate:109 - Step 2: Structural validation for q10
+00:53:26 | INFO     | evaluation.evaluator:evaluate:124 - Query q10: No Ground Truth. Switching to Heuristic Evaluation.
+00:53:26 | INFO     | evaluation.layers.manager:evaluate_heuristic:47 - Starting Heuristic Evaluation for query: asdf jkl;...
+00:53:26 | DEBUG    | evaluation.layers.pattern:evaluate:62 - Pattern Analysis Found Issues: ['LIMIT used without ORDER BY (Non-deterministic)']
+00:53:26 | ERROR    | evaluation.layers.drift:evaluate:38 - Error calculating drift in DriftLayer: DriftDetector.detect() missing 2 required positional arguments: 'query_text' and 'agent_type'
+00:53:26 | INFO     | evaluation.layers.manager:evaluate_heuristic:78 - Heuristic Evaluation Complete. Status: PASS, Score: 0.84, Confidence: 0.42
+00:53:26 | ERROR    | evaluation.evaluator:store_result:268 - Error storing evaluation result: insert or update on table "evaluations" violates foreign key constraint "evaluations_query_id_fkey"
+DETAIL:  Key (query_id)=(q10) is not present in table "queries".
+
+00:53:26 | INFO     | __main__:run_batch:110 - Query q10 Result: PASS | Score: 0.84 | Time: 0.65s
+00:53:26 | INFO     | __main__:run_batch:112 - Breakdown: {'structural': 1.0, 'intent': 1.0, 'pattern': 0.7, 'drift_quality': 0.5}
+00:53:26 | INFO     | __main__:run_batch:114 - Reasoning: Reference-Free Heuristic Evaluation

@@ -13,9 +13,14 @@
     "@azure/msal-browser": "^5.1.0",
     "@azure/msal-react": "^5.0.3",
     "axios": "^1.13.4",
+    "framer-motion": "^12.33.0",
+    "gsap": "^3.14.2",
+    "lucide-react": "^0.563.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "recharts": "^3.7.0"
+    "react-router-dom": "^7.13.0",
+    "recharts": "^3.7.0",
+    "three": "^0.182.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

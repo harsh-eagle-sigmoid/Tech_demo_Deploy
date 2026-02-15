@@ -1,201 +1,78 @@
-# Unilever Procurement GPT POC
+# Unilever Procurement GPT (POC)
 
-AI-driven Evaluation and Monitoring Framework for Procurement Agents
+**A Multi-Agent AI System for Supply Chain & Procurement Intelligence**
 
-## Project Overview
+## 📖 Project Abstract
+The **Unilever Procurement GPT** is an advanced AI system designed to democratize access to critical supply chain data. Unlike standard chatbots, it uses a governed **Text-to-SQL Architecture** to query enterprise databases with high precision (>90% accuracy). It solves the "Hallucination Problem" by strictly adhering to database schemas and business logic.
 
-This POC system evaluates and monitors AI agents (Spend Agent and Demand Agent) that handle procurement queries using Text-to-SQL approach.
+### Key Capabilities
+-   **Multi-Agent Architecture**: Separate specialized agents for **Spend** (Financials) and **Demand** (Supply Chain).
+-   **Real-Time Governance**: Tracks **Drift** (anomalous queries) and **Accuracy** (Ground Truth evaluation) on every request.
+-   **Enterprise Security**: Integrated with **Azure Active Directory** for secure access.
 
-**Key Features:**
-- Text-to-SQL AI Agents (Spend & Demand)
-- Automated Evaluation Framework (≥90% accuracy)
-- Drift Detection System
-- Error Classification (5 categories)
-- Real-time Monitoring Dashboard
-- REST API
+---
 
-## Project Structure
+## 💻 Code Introduction (Architecture)
 
-```
-unilever-procurement-poc/
-├── agents/           # AI agents (Spend & Demand)
-├── evaluation/       # Evaluation framework
-├── monitoring/       # Drift detection & error classification
-├── api/              # FastAPI REST API
-├── database/         # Database models & connections
-├── dashboard/        # Streamlit dashboard
-├── data/             # Datasets & ground truth
-├── tests/            # Unit & integration tests
-├── docs/             # Documentation
-└── config/           # Configuration files
-```
+This project follows a **Modular Microservice-like Monolith** structure:
 
-## Tech Stack
+### 1. The Core (API Gateway)
+-   **Path**: `api/main.py`
+-   **Role**: The central hub. Handles Authentication, Request Routing, and Logging.
+-   **Tech**: FastAPI, Uvicorn.
 
-- **Language:** Python 3.11+
-- **Framework:** FastAPI
-- **Database:** PostgreSQL 15+ with pgvector
-- **LLM:** Ollama + Llama 3.1 8B (free, local)
-- **Embeddings:** Sentence Transformers
-- **Dashboard:** Streamlit
-- **Vector Store:** FAISS / pgvector
+### 2. The Intelligence (Agents)
+-   **Path**: `spend_agent/`, `demand_agent/`
+-   **Role**: Independent workers. Each agent runs on its own port (8001, 8002) and contains specific **System Prompts** and **Few-Shot Examples** to master its domain.
+-   **Tech**: Azure OpenAI (GPT-4o).
 
-## Setup Instructions
+### 3. The Guardian (Monitoring)
+-   **Path**: `monitoring/` & `evaluation/`
+-   **Role**: Ensures reliability.
+    -   **Drift Detector**: Uses Vector Embeddings (AWS Bedrock) to flag weird queries.
+    -   **Evaluator**: Automatically grades AI answers against a Ground Truth dataset.
+
+### 4. The Data Layer (Database)
+-   **Path**: `database/`
+-   **Role**: Stores business data (PostgreSQL) and vector embeddings (`pgvector`).
+-   **Key Files**: `schemas.py` (Table Definitions), `load_data.py` (ETL Script).
+
+---
+
+## 🚀 Quick Start
 
 ### Prerequisites
+-   Python 3.11+
+-   PostgreSQL 15+ (with `pgvector`)
+-   Node.js 18+ (for Dashboard)
 
-- Python 3.11+
-- PostgreSQL 15+ with pgvector extension
-- Ollama (for local LLM)
-- Git
-
-### 1. Clone Repository
-
+### 1. Setup
 ```bash
-cd /home/lenovo/Desktop/New_tech_demo
-```
-
-### 2. Create Virtual Environment
-
-```bash
-python3.11 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-### 3. Install Dependencies
-
-```bash
-pip install --upgrade pip
+# Clone and Install
+git clone <repo>
+cd New_tech_demo
 pip install -r requirements.txt
+
+# Setup DB
+python database/init_db.py
+python database/load_data.py
 ```
 
-### 4. Install Ollama & Download Model
-
+### 2. Run Everything
 ```bash
-# Install Ollama (Linux)
-curl -fsSL https://ollama.com/install.sh | sh
-
-# Download Llama 3.1 8B model
-ollama pull llama3.1
+./start_all.sh
 ```
 
-### 5. Setup PostgreSQL Database
+### 3. Access
+-   **Dashboard**: `http://localhost:3000` (Login Required)
+-   **API**: `http://localhost:8000`
+-   **Spend Agent UI**: `http://localhost:8501`
+-   **Demand Agent UI**: `http://localhost:8502`
 
-```bash
-# Install PostgreSQL (if not already installed)
-sudo apt update
-sudo apt install postgresql postgresql-contrib
+---
 
-# Start PostgreSQL service
-sudo systemctl start postgresql
-sudo systemctl enable postgresql
-
-# Create database
-sudo -u postgres psql -c "CREATE DATABASE unilever_poc;"
-sudo -u postgres psql -d unilever_poc -c "CREATE EXTENSION vector;"
-```
-
-### 6. Configure Environment
-
-```bash
-cp .env.example .env
-# Edit .env with your database credentials
-nano .env
-```
-
-### 7. Initialize Database
-
-```bash
-python -m database.init_db
-```
-
-### 8. Load Data
-
-```bash
-python -m database.load_data
-```
-
-## Running the Application
-
-### Start API Server
-
-```bash
-uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-Access API docs: http://localhost:8000/docs
-
-### Start Dashboard
-
-```bash
-streamlit run dashboard/app.py
-```
-
-Access dashboard: http://localhost:8501
-
-### Run Tests
-
-```bash
-pytest tests/ -v --cov
-```
-
-## Development Workflow
-
-### Phase 1: Setup (Week 1)
-- Environment setup ✅
-- Database creation
-- Data loading
-
-### Phase 2: Build Agents (Week 2-3)
-- Spend Agent (Text-to-SQL)
-- Demand Agent (Text-to-SQL)
-
-### Phase 3: Ground Truth (Week 3-4)
-- Query collection (2,500 queries)
-- SQL generation
-
-### Phase 4: Evaluation Framework (Week 4-5)
-- 6-step evaluation pipeline
-- Agent improvement (≥90% accuracy)
-
-### Phase 5: Monitoring Framework (Week 6-7)
-- Drift detection
-- Error classification
-
-### Phase 6: Integration (Week 8-9)
-- API development
-- Dashboard creation
-
-### Phase 7: Deployment (Week 10)
-- Testing & validation
-- Azure deployment
-
-## API Endpoints
-
-- `POST /api/v1/query` - Process query with agent
-- `POST /api/v1/evaluate` - Evaluate agent response
-- `GET /api/v1/metrics` - Get evaluation metrics
-- `GET /api/v1/drift` - Get drift detection status
-- `GET /api/v1/errors` - Get error summary
-- `POST /api/v1/baseline/update` - Update drift baseline
-
-## Contributing
-
-This is a POC project for Unilever. For issues or questions, contact the development team.
-
-## License
-
-Proprietary - Unilever POC
-
-## Documentation
-
-- [Implementation Plan](Implementation_Plan.md)
-- [Dataset Analysis](Dataset_Analysis.md)
-- [Architecture Overview](Unilever_POC_Final.pdf)
-
-## Status
-
-🚧 **Phase 1: In Progress** - Setting up infrastructure and loading data
-
-**Last Updated:** February 2, 2026
-# prototype_1
+## 🛠 Tech Stack
+-   **Backend**: Python, FastAPI, SQLAlchemy
+-   **Database**: PostgreSQL + pgvector
+-   **AI Models**: Azure OpenAI (GPT-4o), AWS Titan (Embeddings)
+-   **Frontend**: React, Vite, Recharts, Streamlit
