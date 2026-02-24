@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import './App.css';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, Activity, AlertTriangle, Play, Bell, ChevronLeft, ChevronRight, LogOut, ArrowLeft } from 'lucide-react';
+import { LayoutDashboard, Activity, AlertTriangle, Play, Bell, ChevronLeft, ChevronRight, LogOut, ArrowLeft, CheckCircle, Database } from 'lucide-react';
 import { fetchHealth } from './api';
 import MetricsPanel from './MetricsPanel';
 import DriftPanel from './DriftPanel';
@@ -9,13 +9,15 @@ import ErrorsPanel from './ErrorsPanel';
 import QueryPanel from './QueryPanel';
 import ExecutionsPanel from './ExecutionsPanel';
 import AlertsPanel from './AlertsPanel';
+import DataQualityPanel from './DataQualityPanel';
+import SchemaPanel from './SchemaPanel';
 import AuthProvider, { LoginButton, RequireAuth, useAuth } from './AuthProvider';
 import AgentSelector from './AgentSelector';
 
-const TABS = ['Metrics', 'Drift', 'Errors', 'Executions', 'Alerts'];
+const TABS = ['Metrics', 'Drift', 'Errors', 'Executions', 'Alerts', 'Data Quality', 'Schema'];
 
 // Main Dashboard
-function Dashboard({ agentId, initialTab, onBack, onTabChange }) {
+function Dashboard({ agentId, numericAgentId, initialTab, onBack, onTabChange }) {
   const [tab, setTab] = useState(initialTab || 'Metrics');
   const [collapsed, setCollapsed] = useState(false);
   const [health, setHealth] = useState(null);
@@ -26,7 +28,9 @@ function Dashboard({ agentId, initialTab, onBack, onTabChange }) {
     'Drift': <Activity size={20} />,
     'Errors': <AlertTriangle size={20} />,
     'Executions': <Play size={20} />,
-    'Alerts': <Bell size={20} />
+    'Alerts': <Bell size={20} />,
+    'Data Quality': <CheckCircle size={20} />,
+    'Schema': <Database size={20} />
   };
 
   // Track visited tabs to lazy-load content
@@ -95,7 +99,7 @@ function Dashboard({ agentId, initialTab, onBack, onTabChange }) {
         <header className="top-header">
           <div>
             <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.5px' }}>
-              {agentId ? (agentId.charAt(0).toUpperCase() + agentId.slice(1) + " GPT") : "Dashboard"}
+              {agentId ? (typeof agentId === 'string' ? (agentId.charAt(0).toUpperCase() + agentId.slice(1) + " GPT") : "Agent " + agentId) : "Dashboard"}
             </h2>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 500 }}>Control Plane & Monitoring</span>
           </div>
@@ -125,6 +129,12 @@ function Dashboard({ agentId, initialTab, onBack, onTabChange }) {
           <div style={{ display: tab === 'Alerts' ? 'block' : 'none' }} className="tab-pane fade-in">
             {visitedTabs.has('Alerts') && <AlertsPanel isActive={tab === 'Alerts'} />}
           </div>
+          <div style={{ display: tab === 'Data Quality' ? 'block' : 'none' }} className="tab-pane fade-in">
+            {visitedTabs.has('Data Quality') && <DataQualityPanel agentId={numericAgentId} isActive={tab === 'Data Quality'} />}
+          </div>
+          <div style={{ display: tab === 'Schema' ? 'block' : 'none' }} className="tab-pane fade-in">
+            {visitedTabs.has('Schema') && <SchemaPanel agentId={numericAgentId} isActive={tab === 'Schema'} />}
+          </div>
         </main>
       </div>
     </div>
@@ -144,15 +154,17 @@ export default function App() {
     }
   });
 
-  const handleSelect = (agentId, tab = 'Metrics') => {
-    const s = { agentId, tab };
+  const handleSelect = (agent, tab = 'Metrics') => {
+    // Handle both old string format and new object format for backward compatibility
+    const agentData = typeof agent === 'string' ? { id: agent, numericId: null } : agent;
+    const s = { agentId: agentData.id, numericAgentId: agentData.numericId, tab };
     setSelection(s);
     localStorage.setItem('dashboard_selection', JSON.stringify(s));
   };
 
   const handleTabChange = (t) => {
     if (selection) {
-      handleSelect(selection.agentId, t);
+      handleSelect({ id: selection.agentId, numericId: selection.numericAgentId }, t);
     }
   };
 
@@ -169,6 +181,7 @@ export default function App() {
         ) : (
           <Dashboard
             agentId={selection.agentId}
+            numericAgentId={selection.numericAgentId}
             initialTab={selection.tab}
             onBack={handleBack}
             onTabChange={handleTabChange}

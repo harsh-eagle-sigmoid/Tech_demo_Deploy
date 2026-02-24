@@ -1,29 +1,83 @@
 
 import re
-from typing import Tuple
+from typing import Optional
 from loguru import logger
 
 
 class SemanticChecker:
-    
+    """Schema-aware SQL semantic comparison.
+    Normalizes table/column aliases before comparing components so that
+    'c.region' and 'region', or 'AVG(o.profit) as avg_profit' and 'AVG(profit)',
+    are recognized as equivalent.
+    """
+
+    def __init__(self, schema_info: Optional[dict] = None):
+        # Build lookup sets from schema metadata for alias resolution
+        self.all_columns = set()
+        self.all_tables = set()
+
+        if schema_info:
+            for table, columns in schema_info.items():
+                self.all_tables.add(table.lower())
+                for col_name in columns.keys():
+                    self.all_columns.add(col_name.lower())
+
+            logger.info(f"SemanticChecker schema-aware: {len(self.all_tables)} tables, {len(self.all_columns)} columns")
+
+    def _normalize_column_ref(self, item: str) -> str:
+        """Normalize a single column reference by stripping aliases and table prefixes.
+        Examples:
+          'c.region'                     → 'region'
+          'AVG(o.profit) as avg_profit'  → 'avg(profit)'
+          'spend_data.orders o'          → 'orders'
+          'SUM(o.sales) as total'        → 'sum(sales)'
+        """
+        item = item.strip().lower()
+
+        # Step 1: Strip column alias (AS alias_name)
+        item = re.sub(r'\s+as\s+\w+', '', item)
+
+        # Step 2: Strip table alias suffix on table references ('orders o' → 'orders')
+        item = re.sub(r'^([\w\.]+)\s+\w+$', r'\1', item)
+
+        # Step 3: Strip schema prefix ('spend_data.orders' → 'orders')
+        item = re.sub(r'^\w+\.(\w+)$', r'\1', item)
+
+        # Step 4: Normalize function arguments — strip table alias inside functions
+        # AVG(o.profit) → AVG(profit), SUM(c.sales) → SUM(sales)
+        def strip_alias_in_func(match):
+            func_name = match.group(1)
+            inner = match.group(2)
+            # Strip table alias prefix from inner reference
+            inner_clean = re.sub(r'\w+\.(\w+)', r'\1', inner)
+            return f"{func_name}({inner_clean})"
+
+        item = re.sub(r'(\w+)\(([^)]+)\)', strip_alias_in_func, item)
+
+        # Step 5: Strip remaining table alias prefix on plain columns ('o.profit' → 'profit')
+        if '.' in item and '(' not in item:
+            parts = item.split('.')
+            if len(parts) == 2:
+                potential_col = parts[1].strip()
+                if potential_col in self.all_columns or not self.all_columns:
+                    item = potential_col
+
+        return item.strip()
+
+    def _normalize_component_list(self, items: list) -> list:
+        """Apply normalization to every item in a component list."""
+        return [self._normalize_column_ref(item) for item in items]
 
     def normalize_sql(self, sql: str) -> str:
-        
+        """Normalize SQL whitespace, case, and trailing semicolons."""
         sql = re.sub(r'\s+', ' ', sql)
-
-    
         sql = sql.lower()
-
-        
         sql = sql.rstrip(';')
-
-        
         sql = sql.strip()
-
         return sql
 
     def extract_components(self, sql: str) -> dict:
-        
+        """Extract SQL components (SELECT, FROM, WHERE, GROUP BY, ORDER BY, JOINs)."""
         components = {
             "select": [],
             "from": [],
@@ -53,7 +107,7 @@ class SemanticChecker:
             components["where"] = [where_match.group(1).strip()]
 
         # Extract GROUP BY
-        group_match = re.search(r'group\s+by\s+(.*?)(?:\s+order\s+by|\s+limit|$)', sql_normalized, re.IGNORECASE)
+        group_match = re.search(r'group\s+by\s+(.*?)(?:\s+having|\s+order\s+by|\s+limit|$)', sql_normalized, re.IGNORECASE)
         if group_match:
             components["group_by"] = [col.strip() for col in group_match.group(1).split(',')]
 
@@ -75,11 +129,11 @@ class SemanticChecker:
         return components
 
     def calculate_similarity(self, sql1: str, sql2: str) -> float:
-        
+        """Calculate schema-aware semantic similarity between two SQL queries."""
         norm1 = self.normalize_sql(sql1)
         norm2 = self.normalize_sql(sql2)
 
-        # Exact match
+        # Exact match after normalization
         if norm1 == norm2:
             return 1.0
 
@@ -87,79 +141,70 @@ class SemanticChecker:
         comp1 = self.extract_components(sql1)
         comp2 = self.extract_components(sql2)
 
-        # Calculate component-wise similarity
+        # Normalize components using schema context before comparison
+        comp1_select = self._normalize_component_list(comp1["select"])
+        comp2_select = self._normalize_component_list(comp2["select"])
+
+        comp1_from = self._normalize_component_list(comp1["from"])
+        comp2_from = self._normalize_component_list(comp2["from"])
+
+        comp1_group = self._normalize_component_list(comp1["group_by"])
+        comp2_group = self._normalize_component_list(comp2["group_by"])
+
+        comp1_order = self._normalize_component_list(comp1["order_by"])
+        comp2_order = self._normalize_component_list(comp2["order_by"])
+
+        comp1_joins = self._normalize_component_list(comp1["joins"])
+        comp2_joins = self._normalize_component_list(comp2["joins"])
+
+        # Calculate component-wise similarity with weights
         scores = []
 
-        # SELECT clause (40% weight)
-        select_score = self._list_similarity(comp1["select"], comp2["select"])
+        select_score = self._list_similarity(comp1_select, comp2_select)
         scores.append(("select", select_score, 0.4))
 
-        # FROM clause (15% weight)
-        from_score = self._list_similarity(comp1["from"], comp2["from"])
+        from_score = self._list_similarity(comp1_from, comp2_from)
         scores.append(("from", from_score, 0.15))
 
-        # WHERE clause (20% weight)
+        # WHERE uses raw comparison (conditions are complex, alias stripping may break logic)
         where_score = self._list_similarity(comp1["where"], comp2["where"])
         scores.append(("where", where_score, 0.2))
 
-        # GROUP BY (10% weight)
-        group_score = self._list_similarity(comp1["group_by"], comp2["group_by"])
+        group_score = self._list_similarity(comp1_group, comp2_group)
         scores.append(("group_by", group_score, 0.1))
 
-        # ORDER BY (10% weight)
-        order_score = self._list_similarity(comp1["order_by"], comp2["order_by"])
+        order_score = self._list_similarity(comp1_order, comp2_order)
         scores.append(("order_by", order_score, 0.1))
 
-        # JOINs (5% weight)
-        join_score = self._list_similarity(comp1["joins"], comp2["joins"])
+        join_score = self._list_similarity(comp1_joins, comp2_joins)
         scores.append(("joins", join_score, 0.05))
 
-        # Calculate weighted average
         total_score = sum(score * weight for _, score, weight in scores)
+
+        logger.debug(f"SemanticChecker: {', '.join(f'{name}={score:.2f}' for name, score, _ in scores)} → total={total_score:.3f}")
 
         return total_score
 
     def _list_similarity(self, list1: list, list2: list) -> float:
-        """
-        Calculate similarity between two lists
-
-        Args:
-            list1: First list
-            list2: Second list
-
-        Returns:
-            Similarity score (0.0 to 1.0)
-        """
+        """Calculate similarity between two lists using Overlap Coefficient."""
         if not list1 and not list2:
             return 1.0
 
         if not list1 or not list2:
             return 0.0
 
-        # Normalize items
-        set1 = set(item.strip() for item in list1)
-        set2 = set(item.strip() for item in list2)
+        set1 = set(item.strip().lower() for item in list1)
+        set2 = set(item.strip().lower() for item in list2)
 
-        # Use Overlap Coefficient for leniency (intersection / smaller_set)
-        # This allows subset matches (e.g. missing columns) to score 1.0
         intersection = len(set1 & set2)
         min_len = min(len(set1), len(set2))
         if min_len == 0:
             return 0.0
-            
+
         return intersection / min_len
 
     def check_semantic_equivalence(self, generated_sql: str, ground_truth_sql: str) -> dict:
-        """
-        Check semantic equivalence between generated and ground truth SQL
-
-        Args:
-            generated_sql: SQL generated by agent
-            ground_truth_sql: Expected SQL from ground truth
-
-        Returns:
-            Dict with semantic check results
-        """
+        """Check semantic equivalence between generated and ground truth SQL."""
         similarity_score = self.calculate_similarity(generated_sql, ground_truth_sql)
 
         result = {

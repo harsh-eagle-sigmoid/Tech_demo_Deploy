@@ -35,6 +35,13 @@
     "agent_type": "demand"
   },
   {
+    "query_id": "DEMAND-0287",
+    "query_text": "What is highest defect rate by supplier?",
+    "sql": "SELECT s.supplier_name, MAX(sc.defect_rate) as highest_defect_rate\n     FROM demand_data.supply_chain sc\n     JOIN demand_data.suppliers s ON sc.supplier_id = s.supplier_id\n     GROUP BY s.supplier_name\n     ORDER BY highest_defect_rate DESC\n     LIMIT 100",
+    "complexity": "medium",
+    "agent_type": "demand"
+  },
+  {
     "query_id": "SPEND-0557",
     "query_text": "What is the shipping cost as percentage of sales by region?",
     "sql": "SELECT c.region, (SUM(o.shipping_cost) / SUM(o.sales)) * 100 AS shipping_cost_percentage\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.region",
@@ -87,6 +94,13 @@
     "query_id": "SPEND-0340",
     "query_text": "Which region has highest profit?",
     "sql": "SELECT c.region, SUM(o.profit) as total_profit\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.region\n                         ORDER BY total_profit DESC\n                         LIMIT 1",
+    "complexity": "medium",
+    "agent_type": "spend"
+  },
+  {
+    "query_id": "SPEND-0341",
+    "query_text": "Which region has average profit?",
+    "sql": "SELECT c.region, AVG(o.profit) as average_profit\n                         FROM spend_data.orders o\n                         JOIN spend_data.customers c ON o.customer_id = c.customer_id\n                         GROUP BY c.region",
     "complexity": "medium",
     "agent_type": "spend"
   },

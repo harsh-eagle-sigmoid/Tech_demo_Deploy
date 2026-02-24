@@ -29,6 +29,12 @@ export default function MetricsPanel({ agentId, isActive = true }) {
     AvgScore: +(d.avg_score * 100).toFixed(1),
   }));
 
+  // Dynamic agent keys from trend data (exclude 'time')
+  const AGENT_COLORS = ['#4c9eff', '#3ecf8e', '#a55eea', '#ff9f43', '#ff6b6b', '#ffd43b'];
+  const agentKeys = data.trend && data.trend.length > 0
+    ? Object.keys(data.trend[0]).filter(k => k !== 'time')
+    : [];
+
   return (
     <>
       {/* Stat cards */}
@@ -74,25 +80,26 @@ export default function MetricsPanel({ agentId, isActive = true }) {
       {/* Chart + per-agent table */}
       <div className="panels-row">
         <div className="panel">
-          <h3>Accuracy Trend (Last 24h)</h3>
+          <h3>Accuracy Trend</h3>
           <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={data.trend || []}>
               <defs>
-                <linearGradient id="colorSpend" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#4c9eff" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="#4c9eff" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="colorDemand" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3ecf8e" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="#3ecf8e" stopOpacity={0} />
-                </linearGradient>
+                {agentKeys.map((key, i) => (
+                  <linearGradient key={key} id={`color_${key}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={AGENT_COLORS[i % AGENT_COLORS.length]} stopOpacity={0.4} />
+                    <stop offset="95%" stopColor={AGENT_COLORS[i % AGENT_COLORS.length]} stopOpacity={0} />
+                  </linearGradient>
+                ))}
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#2a3548" />
               <XAxis dataKey="time" stroke="#5a7a99" fontSize={12} />
               <YAxis domain={[0, 100]} stroke="#5a7a99" fontSize={12} unit="%" />
               <Tooltip contentStyle={{ background: '#1e2736', border: '1px solid #2a3548', borderRadius: 6, color: '#c8d6e5' }} />
-              <Area type="monotone" dataKey="Spend" stroke="#4c9eff" strokeWidth={2} fillOpacity={1} fill="url(#colorSpend)" activeDot={{ r: 6 }} />
-              <Area type="monotone" dataKey="Demand" stroke="#3ecf8e" strokeWidth={2} fillOpacity={1} fill="url(#colorDemand)" activeDot={{ r: 6 }} />
+              {agentKeys.map((key, i) => (
+                <Area key={key} type="monotone" dataKey={key}
+                  stroke={AGENT_COLORS[i % AGENT_COLORS.length]} strokeWidth={2}
+                  fillOpacity={1} fill={`url(#color_${key})`} activeDot={{ r: 6 }} />
+              ))}
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -115,6 +122,7 @@ export default function MetricsPanel({ agentId, isActive = true }) {
               <XAxis dataKey="agent" stroke="#5a7a99" fontSize={13} />
               <YAxis domain={[0, 100]} stroke="#5a7a99" fontSize={12} unit="%" />
               <Tooltip contentStyle={{ background: '#1e2736', border: '1px solid #2a3548', borderRadius: 6, color: '#c8d6e5' }} />
+              <Legend wrapperStyle={{ color: '#94a3b8', fontSize: 12 }} />
               <Bar dataKey="Accuracy" fill="url(#barGradientAccuracy)" radius={[4, 4, 0, 0]} />
               <Bar dataKey="AvgScore" fill="url(#barGradientScore)" radius={[4, 4, 0, 0]} name="Avg Score %" />
             </BarChart>
@@ -126,7 +134,12 @@ export default function MetricsPanel({ agentId, isActive = true }) {
           <table className="data-table">
             <thead>
               <tr>
-                <th>Agent</th><th>Total</th><th>Passed</th><th>Accuracy</th><th>Avg Score</th><th>Latency</th>
+                <th>Agent</th>
+                <th>Total</th>
+                <th>Passed</th>
+                <th>Accuracy</th>
+                <th>Avg Score</th>
+                <th>Latency</th>
               </tr>
             </thead>
             <tbody>

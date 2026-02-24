@@ -18,7 +18,7 @@ DB_PASSWORD = os.getenv("DB_PASSWORD", "postgres")
 
 DRIFT_HIGH_THRESHOLD   = float(os.getenv("DRIFT_HIGH_THRESHOLD", "0.5"))
 DRIFT_MEDIUM_THRESHOLD = float(os.getenv("DRIFT_MEDIUM_THRESHOLD", "0.3"))
-EMBEDDING_MODEL        = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+EMBEDDING_MODEL        = os.getenv("EMBEDDING_MODEL", "amazon.titan-embed-text-v2:0")
 EMBEDDING_DIM          = int(os.getenv("EMBEDDING_DIMENSION", "1024"))
 
 

@@ -63,8 +63,12 @@ class Settings(BaseSettings):
     DRIFT_HIGH_THRESHOLD: float = 0.5
     DRIFT_MEDIUM_THRESHOLD: float = 0.3
 
+    # Health Check Configuration
+    HEALTH_CHECK_INTERVAL_S: int = 30
+    TELEMETRY_GAP_THRESHOLD_M: int = 10
+
     # Embedding Configuration
-    EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
+    EMBEDDING_MODEL: str = "amazon.titan-embed-text-v2:0"
     EMBEDDING_DIMENSION: int = 1024  # Bedrock Titan V2
 
     # Azure AD Authentication Configuration

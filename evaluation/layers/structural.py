@@ -7,10 +7,15 @@ class StructuralLayer:
     """
     Layer 1: Structural Validation (Weight: 35%)
     Wraps StructuralValidator to check syntax and schema compliance.
+    Accepts either a schema_name (legacy) or a pre-built validator (dynamic agents).
     """
-    def __init__(self, schema_name: str):
-        self.validator = StructuralValidator(schema_name)
-        logger.info(f"Initialized StructuralLayer for schema: {schema_name}")
+    def __init__(self, schema_name: str = None, validator: StructuralValidator = None):
+        if validator is not None:
+            self.validator = validator
+        elif schema_name:
+            self.validator = StructuralValidator(schema_name=schema_name)
+        else:
+            self.validator = StructuralValidator()
 
     def evaluate(self, sql: str) -> float:
         """

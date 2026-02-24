@@ -19,18 +19,45 @@ class SemanticMatcher:
         self.is_ready = False
 
     def load_from_file(self, filepath: str):
-        """Load ground truth from JSON and initialize."""
+        """Load ground truth from JSON and initialize. Handles multiple GT formats."""
         try:
             with open(filepath, 'r') as f:
-                gt_list = json.load(f)
-            
+                data = json.load(f)
+
+            # Handle different GT file formats
+            if isinstance(data, dict) and 'queries' in data:
+                # Agent-specific format: {agent_id, agent_name, queries: [...]}
+                gt_list = data['queries']
+            elif isinstance(data, list):
+                # Standard format: [...]
+                gt_list = data
+            else:
+                logger.error(f"Unknown GT format in {filepath}")
+                return
+
             # Convert list to dict format expected by initialize
             gt_data = {}
             for q in gt_list:
-                key = q["query_text"].strip().lower().rstrip("?.!")
-                gt_data[key] = q
-            
+                # Handle different query text field names
+                query_text = (q.get("query_text") or
+                             q.get("natural_language") or
+                             q.get("query") or "")
+
+                if not query_text:
+                    continue
+
+                key = query_text.strip().lower().rstrip("?.!")
+
+                # Normalize to expected format
+                gt_data[key] = {
+                    "query_text": query_text,
+                    "sql": q.get("sql", ""),
+                    "complexity": q.get("complexity", "simple"),
+                    "query": query_text  # Alias for compatibility
+                }
+
             self.initialize(gt_data)
+            logger.info(f"Loaded {len(gt_data)} queries from {filepath}")
         except Exception as e:
             logger.error(f"Failed to load semantic matcher data from {filepath}: {e}")
 

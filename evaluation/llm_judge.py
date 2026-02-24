@@ -96,6 +96,35 @@ Evaluate if the generated SQL correctly answers the user query."""
                 "raw_response": str(e)
             }
 
+    def call_llm(self, prompt: str, temperature: float = 0.0, max_tokens: int = 500) -> str:
+        """
+        Direct LLM call for custom prompts (used by output validator).
+
+        Args:
+            prompt: The prompt to send to the LLM
+            temperature: Temperature for generation
+            max_tokens: Maximum tokens to generate
+
+        Returns:
+            LLM response as string
+        """
+        try:
+            messages = [
+                {"role": "user", "content": prompt}
+            ]
+
+            response = self.llm.generate(
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens
+            )
+
+            return response
+
+        except Exception as e:
+            logger.error(f"Error in direct LLM call: {e}")
+            raise
+
     def _parse_response(self, response: str) -> Dict:
         
         result = {
