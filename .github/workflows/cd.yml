@@ -85,6 +85,9 @@ jobs:
           sed -i "s|:latest|:$TAG|g" k8s/api-deployment.yaml
           sed -i "s|:latest|:$TAG|g" k8s/dashboard-deployment.yaml
 
+      - name: Create namespace
+        run: kubectl apply -f k8s/namespace.yaml
+
       - name: Inject AWS credentials into K8s secret
         run: |
           kubectl create secret generic unilever-aws-credentials \
@@ -95,7 +98,6 @@ jobs:
 
       - name: Apply Kubernetes manifests
         run: |
-          kubectl apply -f k8s/namespace.yaml
           kubectl apply -f k8s/secret.yaml
           kubectl apply -f k8s/configmap.yaml
           kubectl apply -f k8s/api-deployment.yaml
