@@ -588,7 +588,7 @@ class AgentManager:
                     else:
                         raise Exception("No queries were generated")
                 else:
-                    raise Exception(f"Ground truth file not created at {filepath}")
+                    raise Exception(f"Ground truth file not found in storage: {filename}")
 
             except Exception as e:
                 error_msg = str(e)
