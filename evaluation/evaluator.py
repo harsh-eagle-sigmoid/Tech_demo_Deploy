@@ -156,8 +156,8 @@ class Evaluator:
                 if gt_data:
                     matcher.load_from_data(gt_data)
 
-                # Find closest matching ground truth query (threshold: 0.95 similarity)
-                match = matcher.find_match(query_text, threshold=0.95)
+                # Find closest matching ground truth query (threshold: 0.70 similarity)
+                match = matcher.find_match(query_text, threshold=0.70)
                 if match:
                     ground_truth_sql = match["sql"]
                     complexity = match["complexity"]
