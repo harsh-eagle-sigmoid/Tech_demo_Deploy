@@ -2,7 +2,6 @@
 from typing import List, Dict, Optional
 from openai import AzureOpenAI
 import time
-import ollama
 from loguru import logger
 from config.settings import settings
 
@@ -99,8 +98,9 @@ class LLMClient:
         max_tokens: int,
         stream: bool
     ) -> str:
-        
+
         try:
+            import ollama
             response = ollama.chat(
                 model=self.model,
                 messages=messages,
