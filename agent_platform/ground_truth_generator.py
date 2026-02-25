@@ -8,6 +8,7 @@ from agent_platform.llm_client import LLMClient
 from agent_platform.prompt_builder import PromptBuilder
 from agent_platform.relationship_discovery import RelationshipDiscovery
 from agent_platform.data_sampler import DataSampler
+from agent_platform.gt_storage import get_gt_storage
 from urllib.parse import urlparse
 import psycopg2
 from datetime import datetime, date
@@ -258,14 +259,12 @@ class GroundTruthGenerator:
 
     def _save_to_file(self, agent_id: int, agent_name: str, queries: list):
         """
-        Save queries to JSON file with expected outputs
+        Save queries to JSON (S3 or local filesystem via GTStorage)
         """
-        # Ensure directory exists
-        os.makedirs(self.ground_truth_dir, exist_ok=True)
+        storage = get_gt_storage()
 
         # Determine filename
         filename = f"{agent_name.lower().replace(' ', '_')}_queries.json"
-        filepath = os.path.join(self.ground_truth_dir, filename)
 
         # Execute each query and capture output
         enriched_queries = []
@@ -322,11 +321,10 @@ class GroundTruthGenerator:
             }
         }
 
-        # Save
-        with open(filepath, 'w') as f:
-            json.dump(output, f, indent=2)
+        # Save via GTStorage (S3 or local)
+        storage.save(filename, output)
 
         logger.info(
-            f"Saved {len(enriched_queries)} queries to {filepath} "
+            f"Saved {len(enriched_queries)} queries to {filename} "
             f"(Success: {success_count}, Failed: {fail_count})"
         )

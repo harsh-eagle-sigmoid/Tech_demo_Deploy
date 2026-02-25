@@ -560,13 +560,14 @@ class AgentManager:
                 )
 
                 # Check if file was created and get query count
+                from agent_platform.gt_storage import get_gt_storage
                 agent_name = agent['agent_name'].lower().replace(' ', '_')
-                filepath = f"data/ground_truth/{agent_name}_queries.json"
+                filename = f"{agent_name}_queries.json"
+                gt_storage = get_gt_storage()
+                data = gt_storage.load(filename)
 
-                if os.path.exists(filepath):
-                    with open(filepath, 'r') as f:
-                        data = json.load(f)
-                        query_count = data.get('total_queries', 0)
+                if data is not None:
+                    query_count = data.get('total_queries', 0)
 
                     if query_count > 0:
                         # Success!

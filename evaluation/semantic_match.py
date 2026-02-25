@@ -61,6 +61,34 @@ class SemanticMatcher:
         except Exception as e:
             logger.error(f"Failed to load semantic matcher data from {filepath}: {e}")
 
+    def load_from_data(self, data: dict):
+        """Load ground truth from a pre-loaded dict (S3/memory friendly alternative to load_from_file)."""
+        try:
+            if isinstance(data, dict) and 'queries' in data:
+                gt_list = data['queries']
+            elif isinstance(data, list):
+                gt_list = data
+            else:
+                logger.error("Unknown GT format in data dict")
+                return
+
+            gt_data = {}
+            for q in gt_list:
+                query_text = (q.get("query_text") or q.get("natural_language") or q.get("query") or "")
+                if not query_text:
+                    continue
+                key = query_text.strip().lower().rstrip("?.!")
+                gt_data[key] = {
+                    "query_text": query_text,
+                    "sql": q.get("sql", ""),
+                    "complexity": q.get("complexity", "simple"),
+                    "query": query_text,
+                }
+            self.initialize(gt_data)
+            logger.info(f"Loaded {len(gt_data)} queries from data dict")
+        except Exception as e:
+            logger.error(f"Failed to load semantic matcher from data: {e}")
+
     def initialize(self, ground_truth_data: Dict[str, Dict]):
         
         logger.info(f"Initializing Semantic Matcher with {len(ground_truth_data)} queries...")

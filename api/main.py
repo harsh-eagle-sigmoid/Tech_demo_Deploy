@@ -76,8 +76,12 @@ async def startup_event():
         async def init_matcher():
             try:
                 logger.info("Initializing Semantic Matcher in background...")
+                from agent_platform.gt_storage import get_gt_storage
+                storage = get_gt_storage()
+                data = storage.load("test.json")
                 matcher = SemanticMatcher()
-                await asyncio.to_thread(matcher.load_from_file, "data/ground_truth/test.json")
+                if data is not None:
+                    await asyncio.to_thread(matcher.load_from_data, data)
                 evaluation.semantic_match._matcher_instance = matcher
                 logger.info("Semantic Matcher background initialization complete.")
             except Exception as e:
@@ -153,12 +157,16 @@ def get_semantic_matcher():
     return _semantic_matcher
 
 def get_ground_truth():
-    """Load ground truth queries from JSON file and initialize semantic matcher."""
+    """Load ground truth queries from storage (S3 or local) and initialize semantic matcher."""
     global _ground_truth_cache
     if _ground_truth_cache is None:
         try:
-            with open("data/ground_truth/all_queries.json") as f:
-                gt_list = json.load(f)
+            from agent_platform.gt_storage import get_gt_storage
+            storage = get_gt_storage()
+            gt_list = storage.load("all_queries.json")
+
+            if gt_list is None:
+                raise FileNotFoundError("all_queries.json not found in GT storage")
 
             # Build lookup cache: normalized query text -> ground truth entry
             _ground_truth_cache = {}

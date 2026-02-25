@@ -93,27 +93,28 @@ class Evaluator:
             password=settings.DB_PASSWORD
         )
 
-    def _get_ground_truth_file(self) -> str:
+    def _get_ground_truth_data(self) -> dict | None:
         """
-        Dynamically select ground truth file based on agent type.
-        Each agent has its own GT file: {agent_type}_agent_queries.json
-        Falls back to all_queries.json if agent-specific file doesn't exist.
+        Load ground truth data from storage (S3 or local).
+        Tries agent-specific file first, falls back to all_queries.json.
+        Returns parsed dict or None.
         """
-        import os
+        from agent_platform.gt_storage import get_gt_storage
+        storage = get_gt_storage()
 
         # Normalize agent_type: lowercase, remove spaces, remove '_agent' suffix
         normalized_type = self.agent_type.lower().replace(' ', '_').replace('_agent', '')
 
         # Try agent-specific GT file first
-        agent_gt_file = f"data/ground_truth/{normalized_type}_agent_queries.json"
-        if os.path.exists(agent_gt_file):
-            logger.info(f"Using agent-specific GT file: {agent_gt_file}")
-            return agent_gt_file
+        agent_filename = f"{normalized_type}_agent_queries.json"
+        data = storage.load(agent_filename)
+        if data is not None:
+            logger.info(f"Using agent-specific GT file: {agent_filename}")
+            return data
 
         # Fallback to all_queries.json
-        default_file = "data/ground_truth/all_queries.json"
-        logger.warning(f"Agent-specific GT file not found, using default: {default_file}")
-        return default_file
+        logger.warning(f"Agent-specific GT file not found, using all_queries.json")
+        return storage.load("all_queries.json")
 
     def preprocess(self, query_text: str, generated_sql: str) -> Dict:
         """Clean SQL by stripping whitespace and removing markdown code fences."""
@@ -151,8 +152,9 @@ class Evaluator:
             try:
                 matcher = get_semantic_matcher()
                 # Always reload GT file for current agent type (don't rely on is_ready)
-                gt_file = self._get_ground_truth_file()
-                matcher.load_from_file(gt_file)
+                gt_data = self._get_ground_truth_data()
+                if gt_data:
+                    matcher.load_from_data(gt_data)
 
                 # Find closest matching ground truth query (threshold: 0.95 similarity)
                 match = matcher.find_match(query_text, threshold=0.95)

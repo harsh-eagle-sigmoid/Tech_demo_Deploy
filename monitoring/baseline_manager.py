@@ -37,15 +37,14 @@ def initialize_baseline_if_needed():
 
 def _create_baseline_from_file(agent_type: str, detector: DriftDetector):
     try:
+        from agent_platform.gt_storage import get_gt_storage
+        storage = get_gt_storage()
         queries = []
 
         # 1. Try agent-specific GT file first: e.g. marketing_agent_queries.json
         normalized = agent_type.lower().replace(' ', '_').replace('_agent', '')
-        agent_file = f"data/ground_truth/{normalized}_agent_queries.json"
-        if os.path.exists(agent_file):
-            with open(agent_file, "r") as f:
-                data = json.load(f)
-            # Agent-specific files have {"queries": [{"natural_language": ...}]}
+        data = storage.load(f"{normalized}_agent_queries.json")
+        if data is not None:
             raw = data.get("queries", [])
             queries = [
                 q.get("natural_language") or q.get("query_text", "")
@@ -53,14 +52,12 @@ def _create_baseline_from_file(agent_type: str, detector: DriftDetector):
                 if q.get("natural_language") or q.get("query_text")
             ][:50]
             if queries:
-                logger.info(f"Using agent-specific GT file for baseline: {agent_file}")
+                logger.info(f"Using agent-specific GT for baseline: {normalized}_agent_queries.json")
 
         # 2. Fallback: all_queries.json filtered by agent_type
         if not queries:
-            fallback = "data/ground_truth/all_queries.json"
-            if os.path.exists(fallback):
-                with open(fallback, "r") as f:
-                    all_data = json.load(f)
+            all_data = storage.load("all_queries.json")
+            if all_data:
                 queries = [
                     q["query_text"] for q in all_data
                     if q.get("agent_type", "").lower() == agent_type.lower()
