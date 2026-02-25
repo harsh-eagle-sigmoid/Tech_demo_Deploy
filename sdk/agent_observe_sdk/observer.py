@@ -42,7 +42,7 @@ class Observer:
     def __init__(
         self,
         api_key: str,
-        endpoint: str = "http://localhost:8000",
+        endpoint: str = "https://d3a8i8fww4yp2x.cloudfront.net",
         enabled: bool = True,
     ):
         try:

@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-observe-sdk"
+version = "0.1.0"
+description = "Lightweight observability SDK for AI agents"
+requires-python = ">=3.8"
+dependencies = ["requests>=2.20"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["agent_observe_sdk*"]
