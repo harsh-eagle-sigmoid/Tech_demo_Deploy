@@ -1,0 +1,45 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+logs_archive/
+
+# Testing
+tests/
+scripts/
+test_output.txt
+batch_logs.txt
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Dashboard (not needed in API image)
+dashboard/node_modules/
+dashboard/dist/
+
+# Docs
+docs/
+*.md
+
+# SDK (standalone package, not needed in API)
+sdk/

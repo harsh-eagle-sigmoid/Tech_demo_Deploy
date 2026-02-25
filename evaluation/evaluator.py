@@ -498,7 +498,11 @@ class Evaluator:
                 json.dumps({
                     **evaluation_result["steps"],
                     "scores": evaluation_result.get("scores", {}),
-                    "result_validation": evaluation_result.get("steps", {}).get("result_validation")
+                    # PATH B: result_validation is in steps; PATH A: it's at top-level
+                    "result_validation": (
+                        evaluation_result.get("steps", {}).get("result_validation")
+                        or evaluation_result.get("result_validation")
+                    )
                 }, default=json_serial),
                 datetime.now()
             ))

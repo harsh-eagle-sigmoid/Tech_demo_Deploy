@@ -572,6 +572,17 @@ class AgentManager:
                         # Success!
                         logger.info(f"Ground truth generation successful for agent {agent_id}: {query_count} queries")
                         self._update_gt_status(agent_id, 'success', None, query_count, None)
+
+                        # Auto-create drift baseline from the newly generated GT file
+                        try:
+                            from monitoring.baseline_manager import _create_baseline_from_file
+                            from monitoring.drift_detector import DriftDetector
+                            detector = DriftDetector()
+                            _create_baseline_from_file(agent['agent_name'], detector)
+                            logger.info(f"Drift baseline auto-created for '{agent['agent_name']}'")
+                        except Exception as be:
+                            logger.warning(f"Baseline creation after GT gen failed (non-fatal): {be}")
+
                         return
                     else:
                         raise Exception("No queries were generated")

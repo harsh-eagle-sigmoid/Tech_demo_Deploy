@@ -55,7 +55,7 @@ export const apiRequest = {
  */
 export async function loadAuthConfig() {
   try {
-    const response = await fetch("http://localhost:8000/api/v1/auth/config");
+    const response = await fetch("/api/v1/auth/config");
     const config = await response.json();
 
     if (!config.auth_enabled) {

@@ -34,6 +34,8 @@ export default function MetricsPanel({ agentId, isActive = true }) {
   const agentKeys = data.trend && data.trend.length > 0
     ? Object.keys(data.trend[0]).filter(k => k !== 'time')
     : [];
+  // SVG IDs cannot contain spaces — sanitize agent names for gradient IDs
+  const safeId = (key) => key.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '');
 
   return (
     <>
@@ -85,7 +87,7 @@ export default function MetricsPanel({ agentId, isActive = true }) {
             <AreaChart data={data.trend || []}>
               <defs>
                 {agentKeys.map((key, i) => (
-                  <linearGradient key={key} id={`color_${key}`} x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient key={key} id={`color_${safeId(key)}`} x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor={AGENT_COLORS[i % AGENT_COLORS.length]} stopOpacity={0.4} />
                     <stop offset="95%" stopColor={AGENT_COLORS[i % AGENT_COLORS.length]} stopOpacity={0} />
                   </linearGradient>
@@ -98,7 +100,7 @@ export default function MetricsPanel({ agentId, isActive = true }) {
               {agentKeys.map((key, i) => (
                 <Area key={key} type="monotone" dataKey={key}
                   stroke={AGENT_COLORS[i % AGENT_COLORS.length]} strokeWidth={2}
-                  fillOpacity={1} fill={`url(#color_${key})`} activeDot={{ r: 6 }} />
+                  fillOpacity={1} fill={`url(#color_${safeId(key)})`} activeDot={{ r: 6 }} />
               ))}
             </AreaChart>
           </ResponsiveContainer>

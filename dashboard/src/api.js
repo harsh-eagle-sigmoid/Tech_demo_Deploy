@@ -33,7 +33,7 @@ export const fetchRunDetails = (queryId) => api.get(`${BASE}/monitor/runs/${quer
 
 // Dashboard is monitoring-only — queries go directly to agents via SDK
 export const sendQuery = () => Promise.resolve({ status: "info", error: "Send queries directly to your agent. SDK handles telemetry automatically." });
-export const executeSql = () => Promise.resolve({ status: "error", results: [] });
+export const executeSql = (sql, agentType) => api.post(`${BASE}/execute-sql`, { sql, agent_type: agentType }).then(r => r.data);
 
 // Agent management
 export const fetchAgents = () => api.get(`${BASE}/agents`).then(r => r.data);

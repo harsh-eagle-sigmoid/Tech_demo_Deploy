@@ -37,21 +37,40 @@ def initialize_baseline_if_needed():
 
 def _create_baseline_from_file(agent_type: str, detector: DriftDetector):
     try:
-        filepath = "data/ground_truth/all_queries.json"
-        if not os.path.exists(filepath):
-             logger.warning(f"Baseline file {filepath} not found. Skipping.")
-             return
+        queries = []
 
-        with open(filepath, "r") as f:
-            data = json.load(f)
-            
-        queries = [q["query_text"] for q in data if q["agent_type"] == agent_type][:50]
-        
+        # 1. Try agent-specific GT file first: e.g. marketing_agent_queries.json
+        normalized = agent_type.lower().replace(' ', '_').replace('_agent', '')
+        agent_file = f"data/ground_truth/{normalized}_agent_queries.json"
+        if os.path.exists(agent_file):
+            with open(agent_file, "r") as f:
+                data = json.load(f)
+            # Agent-specific files have {"queries": [{"natural_language": ...}]}
+            raw = data.get("queries", [])
+            queries = [
+                q.get("natural_language") or q.get("query_text", "")
+                for q in raw
+                if q.get("natural_language") or q.get("query_text")
+            ][:50]
+            if queries:
+                logger.info(f"Using agent-specific GT file for baseline: {agent_file}")
+
+        # 2. Fallback: all_queries.json filtered by agent_type
+        if not queries:
+            fallback = "data/ground_truth/all_queries.json"
+            if os.path.exists(fallback):
+                with open(fallback, "r") as f:
+                    all_data = json.load(f)
+                queries = [
+                    q["query_text"] for q in all_data
+                    if q.get("agent_type", "").lower() == agent_type.lower()
+                ][:50]
+
         if queries:
             detector.create_baseline(agent_type, queries)
-            logger.info(f"✅ Baseline created for {agent_type} ({len(queries)} queries)")
+            logger.info(f"✅ Baseline created for '{agent_type}' ({len(queries)} queries)")
         else:
-            logger.warning(f"No queries found for {agent_type} in {filepath}")
+            logger.warning(f"No queries found for '{agent_type}' — baseline skipped")
 
     except Exception as e:
         logger.error(f"Error creating baseline for {agent_type}: {e}")

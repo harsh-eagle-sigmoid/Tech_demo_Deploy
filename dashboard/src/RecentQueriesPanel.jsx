@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment } from 'react';
 import { fetchHistory, fetchRunDetails } from './api';
-import { ChevronDown, ChevronRight, CheckCircle, XCircle, AlertTriangle, Database } from 'lucide-react';
+import { ChevronDown, ChevronRight, CheckCircle, XCircle, Database } from 'lucide-react';
 
 export default function RecentQueriesPanel({ agentId, isActive = true }) {
     const [queries, setQueries] = useState([]);
@@ -94,7 +94,9 @@ export default function RecentQueriesPanel({ agentId, isActive = true }) {
                                             ? (q.output_score * 100).toFixed(0) + '%'
                                             : 'N/A'}
                                     </td>
-                                    <td>{Math.round((q.evaluation_confidence || 0) * 100)}%</td>
+                                    <td style={{ color: '#64748b' }}>
+                                        {q.correctness_verdict === 'FAIL' ? '—' : `${Math.round((q.evaluation_confidence || 0) * 100)}%`}
+                                    </td>
                                     <td style={{ fontSize: '0.85em', color: '#64748b' }}>
                                         {q.timestamp ? new Date(q.timestamp).toLocaleTimeString() : 'N/A'}
                                     </td>
@@ -116,12 +118,14 @@ export default function RecentQueriesPanel({ agentId, isActive = true }) {
                                                             {detail?.evaluation?.verdict || q.correctness_verdict}
                                                         </div>
                                                     </div>
-                                                    <div className="detail-metric">
-                                                        <div className="label">Confidence Score</div>
-                                                        <div className="big-value" style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff' }}>
-                                                            {detail ? Math.round((detail.evaluation?.confidence || 0) * 100) : Math.round((q.evaluation_confidence || 0) * 100)}%
+                                                    {(detail?.evaluation?.verdict || q.correctness_verdict) !== 'FAIL' && (
+                                                        <div className="detail-metric">
+                                                            <div className="label">Confidence Score</div>
+                                                            <div className="big-value" style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff' }}>
+                                                                {detail ? Math.round((detail.evaluation?.confidence || 0) * 100) : Math.round((q.evaluation_confidence || 0) * 100)}%
+                                                            </div>
                                                         </div>
-                                                    </div>
+                                                    )}
                                                 </div>
 
                                                 {/* Score Breakdown - adapts to evaluation type */}
@@ -153,7 +157,7 @@ export default function RecentQueriesPanel({ agentId, isActive = true }) {
                                                 )}
 
                                                 {/* Query Output Results */}
-                                                {detail?.evaluation?.steps?.result_validation && (
+                                                {detail?.evaluation?.result_validation && (
                                                     <div className="sql-box" style={{ marginBottom: '20px' }}>
                                                         <div className="label" style={{ marginBottom: '8px', fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>
                                                             OUTPUT VALIDATION RESULTS
@@ -164,27 +168,58 @@ export default function RecentQueriesPanel({ agentId, isActive = true }) {
                                                             borderRadius: '8px',
                                                             border: '1px solid #334155'
                                                         }}>
-                                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', marginBottom: '15px' }}>
-                                                                <div>
-                                                                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px' }}>Schema Match</div>
-                                                                    <div style={{ fontSize: '0.95rem', fontWeight: 600, color: detail.evaluation.steps.result_validation.schema_match ? '#3ecf8e' : '#ff6b6b' }}>
-                                                                        {detail.evaluation.steps.result_validation.schema_match ? '✓ Match' : '✗ Mismatch'}
+                                                            {/* PATH B: GT comparison metrics */}
+                                                            {detail.evaluation.result_validation.schema_match !== undefined && detail.evaluation.result_validation.validation_type !== 'llm_enhanced' ? (
+                                                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', marginBottom: '15px' }}>
+                                                                    <div>
+                                                                        <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px' }}>Schema Match</div>
+                                                                        <div style={{ fontSize: '0.95rem', fontWeight: 600, color: detail.evaluation.result_validation.schema_match ? '#3ecf8e' : '#ff6b6b' }}>
+                                                                            {detail.evaluation.result_validation.schema_match ? '✓ Match' : '✗ Mismatch'}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div>
+                                                                        <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px' }}>Row Count Match</div>
+                                                                        <div style={{ fontSize: '0.95rem', fontWeight: 600, color: detail.evaluation.result_validation.row_count_match ? '#3ecf8e' : '#ff6b6b' }}>
+                                                                            {detail.evaluation.result_validation.row_count_match ? '✓ Match' : '✗ Mismatch'}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div>
+                                                                        <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px' }}>Content Match</div>
+                                                                        <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#ff9f43' }}>
+                                                                            {(detail.evaluation.result_validation.content_match_rate * 100).toFixed(1)}%
+                                                                        </div>
                                                                     </div>
                                                                 </div>
-                                                                <div>
-                                                                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px' }}>Row Count Match</div>
-                                                                    <div style={{ fontSize: '0.95rem', fontWeight: 600, color: detail.evaluation.steps.result_validation.row_count_match ? '#3ecf8e' : '#ff6b6b' }}>
-                                                                        {detail.evaluation.steps.result_validation.row_count_match ? '✓ Match' : '✗ Mismatch'}
+                                                            ) : (
+                                                                /* PATH A: LLM-based output scores */
+                                                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', marginBottom: '15px' }}>
+                                                                    <div>
+                                                                        <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px' }}>LLM Correctness</div>
+                                                                        <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#3ecf8e' }}>
+                                                                            {detail.evaluation.result_validation.llm_correctness != null
+                                                                                ? (detail.evaluation.result_validation.llm_correctness * 100).toFixed(0) + '%'
+                                                                                : 'N/A'}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div>
+                                                                        <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px' }}>Completeness</div>
+                                                                        <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#4c9eff' }}>
+                                                                            {detail.evaluation.result_validation.llm_completeness != null
+                                                                                ? (detail.evaluation.result_validation.llm_completeness * 100).toFixed(0) + '%'
+                                                                                : 'N/A'}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div>
+                                                                        <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px' }}>Quality</div>
+                                                                        <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#ff9f43' }}>
+                                                                            {detail.evaluation.result_validation.llm_quality != null
+                                                                                ? (detail.evaluation.result_validation.llm_quality * 100).toFixed(0) + '%'
+                                                                                : 'N/A'}
+                                                                        </div>
                                                                     </div>
                                                                 </div>
-                                                                <div>
-                                                                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px' }}>Content Match</div>
-                                                                    <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#ff9f43' }}>
-                                                                        {(detail.evaluation.steps.result_validation.content_match_rate * 100).toFixed(1)}%
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            {detail.evaluation.steps.result_validation.error && (
+                                                            )}
+                                                            {detail.evaluation.result_validation.error && (
                                                                 <div style={{
                                                                     padding: '10px',
                                                                     background: 'rgba(255, 107, 107, 0.1)',
@@ -193,13 +228,13 @@ export default function RecentQueriesPanel({ agentId, isActive = true }) {
                                                                     fontSize: '0.85rem',
                                                                     border: '1px solid rgba(255, 107, 107, 0.3)'
                                                                 }}>
-                                                                    ⚠ Error: {detail.evaluation.steps.result_validation.error}
+                                                                    ⚠ Error: {detail.evaluation.result_validation.error}
                                                                 </div>
                                                             )}
-                                                            {detail.evaluation.steps.result_validation.generated_time_ms && detail.evaluation.steps.result_validation.gt_time_ms && (
+                                                            {detail.evaluation.result_validation.generated_time_ms && (
                                                                 <div style={{ marginTop: '10px', fontSize: '0.75rem', color: '#94a3b8' }}>
-                                                                    Execution: Generated {detail.evaluation.steps.result_validation.generated_time_ms.toFixed(1)}ms |
-                                                                    Ground Truth {detail.evaluation.steps.result_validation.gt_time_ms.toFixed(1)}ms
+                                                                    Execution: {detail.evaluation.result_validation.generated_time_ms.toFixed(1)}ms
+                                                                    {detail.evaluation.result_validation.gt_time_ms && ` | Ground Truth ${detail.evaluation.result_validation.gt_time_ms.toFixed(1)}ms`}
                                                                 </div>
                                                             )}
                                                         </div>

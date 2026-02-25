@@ -504,19 +504,19 @@ def get_drift(agent_type: Optional[str] = Query(None)):
     with get_db() as conn:
         cur = conn.cursor()
 
-        # Filter by agent type using query_id prefix (SPEND/DEMAND)
-        where, params = "", []
-        if agent_type:
-            keyword = "SPEND" if agent_type.lower() == "spend" else "DEMAND"
-            where = " WHERE query_id LIKE %s"
-            params = [f"%{keyword}%"]
+        # Filter by agent_type via JOIN with monitoring.queries (works for any agent name)
+        agent_where = "WHERE LOWER(q.agent_type) = LOWER(%s)" if agent_type else ""
+        agent_and   = "AND LOWER(q.agent_type) = LOWER(%s)" if agent_type else ""
+        params      = [agent_type] if agent_type else []
 
         # Get drift classification distribution (low/medium/high counts + avg score)
         cur.execute(f"""
-            SELECT LOWER(drift_classification), COUNT(*), AVG(drift_score)
-            FROM monitoring.drift_monitoring {where}
-            GROUP BY LOWER(drift_classification)
-            ORDER BY LOWER(drift_classification)
+            SELECT LOWER(d.drift_classification), COUNT(*), AVG(d.drift_score)
+            FROM monitoring.drift_monitoring d
+            JOIN monitoring.queries q ON d.query_id = q.query_id
+            {agent_where}
+            GROUP BY LOWER(d.drift_classification)
+            ORDER BY LOWER(d.drift_classification)
         """, params)
         distribution = {
             row[0]: {"count": row[1], "avg_drift_score": round(float(row[2]), 3)}
@@ -524,7 +524,11 @@ def get_drift(agent_type: Optional[str] = Query(None)):
         }
 
         # Count total anomalies (flagged by drift detector)
-        cur.execute(f"SELECT COUNT(*) FROM monitoring.drift_monitoring WHERE is_anomaly = true {where.replace('WHERE','AND') if where else ''}", params)
+        cur.execute(f"""
+            SELECT COUNT(*) FROM monitoring.drift_monitoring d
+            JOIN monitoring.queries q ON d.query_id = q.query_id
+            WHERE d.is_anomaly = true {agent_and}
+        """, params)
         anomalies = cur.fetchone()[0]
 
         # Get top 20 high-drift queries with details
@@ -532,9 +536,9 @@ def get_drift(agent_type: Optional[str] = Query(None)):
             SELECT d.query_id, d.drift_score, d.drift_classification, q.query_text, q.generated_sql, q.agent_type
             FROM monitoring.drift_monitoring d
             LEFT JOIN monitoring.queries q ON d.query_id = q.query_id
-            WHERE LOWER(d.drift_classification) = 'high' {('AND d.query_id LIKE %s' if agent_type else '')}
+            WHERE LOWER(d.drift_classification) = 'high' {agent_and}
             ORDER BY d.drift_score DESC LIMIT 20
-        """, params if agent_type else [])
+        """, params)
         high_samples = [
             {
                 "query_id": r[0],
@@ -552,7 +556,7 @@ def get_drift(agent_type: Optional[str] = Query(None)):
             SELECT date_trunc('day', q.created_at) as date, AVG(d.drift_score)
             FROM monitoring.drift_monitoring d
             JOIN monitoring.queries q ON d.query_id = q.query_id
-            {where.replace('query_id', 'd.query_id')}
+            {agent_where}
             GROUP BY 1
             ORDER BY 1
         """, params)
@@ -571,6 +575,49 @@ def get_drift(agent_type: Optional[str] = Query(None)):
         "total_anomalies":   anomalies,
         "high_drift_samples": high_samples,
         "trend":             trend
+    }
+
+# ==================== EXECUTE SQL ENDPOINT ====================
+
+class ExecuteSqlRequest(BaseModel):
+    sql: str
+    agent_type: str
+
+@app.post("/api/v1/execute-sql")
+def execute_sql_endpoint(req: ExecuteSqlRequest):
+    """Safely execute a read-only SQL query on the agent's database and return results."""
+    from evaluation.output_validators.query_executor import QueryExecutor
+
+    # Get agent's db_url from platform registry
+    try:
+        mgr = AgentManager()
+        agent = mgr.get_agent_by_name(req.agent_type)
+        if not agent or not agent.get("db_url"):
+            raise HTTPException(status_code=404, detail=f"Agent '{req.agent_type}' not found or has no DB URL")
+        db_url = agent["db_url"]
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load agent: {str(e)}")
+
+    executor = QueryExecutor(timeout_seconds=10, max_rows=100)
+    result = executor.execute(req.sql, db_url)
+
+    if not result.success:
+        return {"status": "error", "error": result.error, "results": []}
+
+    # Convert rows to list of dicts for frontend table rendering
+    columns = result.columns or []
+    rows_as_dicts = [
+        {columns[i]: (str(v) if v is not None else None) for i, v in enumerate(row)}
+        for row in (result.rows or [])
+    ]
+
+    return {
+        "status": "success",
+        "results": rows_as_dicts,
+        "row_count": result.row_count,
+        "execution_time_ms": round(result.execution_time_ms or 0, 2)
     }
 
 # ==================== ERRORS ENDPOINT ====================
