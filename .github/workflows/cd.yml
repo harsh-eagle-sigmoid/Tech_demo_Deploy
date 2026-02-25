@@ -89,12 +89,15 @@ jobs:
         run: kubectl apply -f k8s/namespace.yaml
 
       - name: Inject AWS credentials into K8s secret
+        env:
+          AWS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
           kubectl create secret generic unilever-aws-credentials \
             --namespace=unilever-poc \
-            --from-literal=AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
-            --from-literal=AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
-            --save-config --dry-run=client -o yaml | kubectl apply -f -
+            --from-literal=AWS_ACCESS_KEY_ID="$AWS_KEY_ID" \
+            --from-literal=AWS_SECRET_ACCESS_KEY="$AWS_SECRET" \
+            --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Apply Kubernetes manifests
         run: |
