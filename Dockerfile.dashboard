@@ -1,11 +1,11 @@
 # ── Stage 1: Builder ──────────────────────────────────────────────────────────
-FROM node:18-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
 # Copy package files and install dependencies
 COPY dashboard/package.json dashboard/package-lock.json ./
-RUN npm ci --silent
+RUN npm ci
 
 # Copy source and build
 COPY dashboard/ .
