@@ -151,10 +151,11 @@ class Evaluator:
         if not ground_truth_sql:
             try:
                 matcher = get_semantic_matcher()
-                # Always reload GT file for current agent type (don't rely on is_ready)
-                gt_data = self._get_ground_truth_data()
-                if gt_data:
-                    matcher.load_from_data(gt_data)
+                # Only load GT data if matcher is not already initialized (avoid 100 Bedrock calls per query)
+                if not matcher.is_ready:
+                    gt_data = self._get_ground_truth_data()
+                    if gt_data:
+                        matcher.load_from_data(gt_data)
 
                 # Find closest matching ground truth query (threshold: 0.70 similarity)
                 match = matcher.find_match(query_text, threshold=0.70)
