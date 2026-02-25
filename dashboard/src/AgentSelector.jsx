@@ -20,7 +20,7 @@ export default function AgentSelector({ onSelect }) {
     const [copied, setCopied] = useState(false);
 
     const loadAgents = () => {
-        const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+        const API_BASE = import.meta.env.VITE_API_URL || '';
         axios.get(`${API_BASE}/api/v1/agents/summary`)
             .then(res => { setAgents(res.data); setLoading(false); })
             .catch(err => { console.error("Failed to load agents summary", err); setLoading(false); });
