@@ -23,6 +23,12 @@ numpy==1.26.3
 scipy==1.11.4
 scikit-learn==1.4.0
 
+# Auth
+python-jose[cryptography]==3.3.0
+
+# Scheduler
+apscheduler==3.10.4
+
 # Utilities
 python-dotenv==1.0.0
 loguru==0.7.2
