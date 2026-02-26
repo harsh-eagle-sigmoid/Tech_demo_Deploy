@@ -372,7 +372,12 @@ class ResultValidator:
         )
 
         # Compare results
-        comparison = self.comparator.compare(gen_result, gt_result)
+        comparison = self.comparator.compare(
+            result1_columns=gen_result.columns,
+            result1_rows=gen_result.rows,
+            result2_columns=gt_result.columns,
+            result2_rows=gt_result.rows
+        )
 
         # Calculate weighted score
         # Schema: 20%, Row count: 20%, Content: 60%
