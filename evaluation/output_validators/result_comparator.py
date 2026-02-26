@@ -231,6 +231,18 @@ class ResultComparator:
         if isinstance(val1, (datetime, date)) and isinstance(val2, (datetime, date)):
             return val1 == val2
 
+        # Handle datetime/date vs string (GT JSON stores dates as ISO strings like "2021-02-01")
+        if isinstance(val1, (datetime, date)) and isinstance(val2, str):
+            try:
+                return val1.isoformat() == val2.strip()
+            except Exception:
+                return False
+        if isinstance(val1, str) and isinstance(val2, (datetime, date)):
+            try:
+                return val1.strip() == val2.isoformat()
+            except Exception:
+                return False
+
         # Handle strings
         if isinstance(val1, str) and isinstance(val2, str):
             return val1.strip() == val2.strip()

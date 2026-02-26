@@ -4,7 +4,7 @@ Main result validation orchestrator - executes and compares query outputs
 from typing import Dict, Optional
 from dataclasses import dataclass
 from loguru import logger
-from .query_executor import QueryExecutor, ExecutionResult
+from .query_executor import QueryExecutor
 from .result_comparator import ResultComparator, ComparisonResult
 from .llm_output_judge import LLMOutputJudge
 
@@ -360,30 +360,28 @@ class ResultValidator:
         # Convert GT sample rows to tuples for comparison
         gt_rows_tuples = [tuple(row) for row in gt_sample_rows]
 
-        # Create a fake ExecutionResult for GT to use existing comparator
-        from .query_executor import ExecutionResult
-        gt_result = ExecutionResult(
-            success=True,
-            columns=gt_columns,
-            rows=gt_rows_tuples,
-            row_count=gt_row_count,
-            execution_time_ms=gt_expected_output.get("execution_time_ms"),
-            error=None
-        )
+        # Row count comparison: use stored TOTAL row count from GT (not sample size).
+        # This correctly handles when GT stores only 10 sample rows but total is e.g. 56.
+        row_count_match = (gen_result.row_count == gt_row_count)
 
-        # Compare results
+        # Content comparison: trim generated rows to the sample size so the comparator
+        # gets equal-length arrays and can actually compare content (not just lengths).
+        sample_size = len(gt_rows_tuples)
+        gen_rows_for_comparison = gen_result.rows[:sample_size] if sample_size > 0 else gen_result.rows
+
+        # Compare schema + content (using sample-trimmed rows)
         comparison = self.comparator.compare(
             result1_columns=gen_result.columns,
-            result1_rows=gen_result.rows,
-            result2_columns=gt_result.columns,
-            result2_rows=gt_result.rows
+            result1_rows=gen_rows_for_comparison,
+            result2_columns=gt_columns,
+            result2_rows=gt_rows_tuples
         )
 
-        # Calculate weighted score
+        # Calculate weighted score using correct row_count_match (total vs total)
         # Schema: 20%, Row count: 20%, Content: 60%
         score = (
             0.20 * (1.0 if comparison.schema_match else 0.0) +
-            0.20 * (1.0 if comparison.row_count_match else 0.5) +
+            0.20 * (1.0 if row_count_match else 0.5) +
             0.60 * comparison.content_match_rate
         )
 
@@ -405,7 +403,7 @@ class ResultValidator:
         logger.info(
             f"GT output validation complete: score={score:.2f}, "
             f"schema_match={comparison.schema_match}, "
-            f"row_count_match={comparison.row_count_match}, "
+            f"row_count_match={row_count_match}, "
             f"content_match={comparison.content_match_rate:.2f}"
         )
 
@@ -414,7 +412,7 @@ class ResultValidator:
             confidence=confidence,
             execution_success=True,
             schema_match=comparison.schema_match,
-            row_count_match=comparison.row_count_match,
+            row_count_match=row_count_match,
             content_match_rate=comparison.content_match_rate,
             generated_execution_time_ms=gen_result.execution_time_ms,
             gt_execution_time_ms=gt_expected_output.get("execution_time_ms"),

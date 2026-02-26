@@ -739,11 +739,11 @@ def get_history(limit: int = 50, agent_type: Optional[str] = Query(None)):
     with get_db() as conn:
         cur = conn.cursor()
 
-        # Optional agent type filter
-        where_clause = ""
+        # Filter: exclude queries with no SQL or error status
+        where_clause = "WHERE q.generated_sql IS NOT NULL AND q.generated_sql != '' AND q.generated_sql != '-- No SQL Generated' AND q.status != 'error'"
         params = []
         if agent_type:
-            where_clause = "WHERE LOWER(q.agent_type) = LOWER(%s)"
+            where_clause += " AND LOWER(q.agent_type) = LOWER(%s)"
             params.append(agent_type)
 
         params.append(limit)
