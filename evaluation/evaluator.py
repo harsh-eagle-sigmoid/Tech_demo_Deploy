@@ -450,15 +450,15 @@ class Evaluator:
         threshold = settings.EVALUATION_THRESHOLD
         final_result = "PASS" if final_score >= threshold else "FAIL"
 
+        # Confidence = average of LLM confidence and final score
+        score_confidence = final_score
+        confidence = (llm_confidence + score_confidence) / 2.0
+
         # Veto: if LLM Judge says FAIL and output match is low → wrong GT match, force FAIL
         if llm_score == 0.0 and result_validation_score < 0.3:
             final_result = "FAIL"
             final_score = min(final_score, 0.35)
             confidence = min(confidence, 0.3)
-
-        # Confidence = average of LLM confidence and final score
-        score_confidence = final_score
-        confidence = (llm_confidence + score_confidence) / 2.0
 
         return final_score, final_result, confidence
 
