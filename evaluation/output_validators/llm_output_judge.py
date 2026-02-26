@@ -2,7 +2,7 @@
 LLM-based output validator for queries without ground truth
 Uses LLM to evaluate if query output correctly answers the user's question
 """
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 from dataclasses import dataclass
 from loguru import logger
 from evaluation.llm_judge import LLMJudge
@@ -35,7 +35,8 @@ class LLMOutputJudge:
         columns: List[str],
         rows: List[Tuple],
         row_count: int,
-        execution_time_ms: float
+        execution_time_ms: float,
+        schema_info: Optional[dict] = None
     ) -> LLMOutputScore:
         """
         Evaluate query output using LLM reasoning.
@@ -63,7 +64,8 @@ class LLMOutputJudge:
             output_table=output_table,
             row_count=row_count,
             columns=columns,
-            execution_time_ms=execution_time_ms
+            execution_time_ms=execution_time_ms,
+            schema_info=schema_info
         )
 
         # Call LLM
@@ -115,11 +117,22 @@ class LLMOutputJudge:
         output_table: str,
         row_count: int,
         columns: List[str],
-        execution_time_ms: float
+        execution_time_ms: float,
+        schema_info: Optional[dict] = None
     ) -> str:
         """Build structured prompt for LLM output evaluation"""
 
-        return f"""You are an expert SQL query evaluator. Analyze whether the query output correctly answers the user's question.
+        # Build schema context so LLM can map column names to natural language
+        schema_context = ""
+        if schema_info:
+            lines = []
+            for table, cols in schema_info.items():
+                col_names = [c if isinstance(c, str) else c.get("column_name", str(c)) for c in cols]
+                lines.append(f"  - {table}: {', '.join(col_names)}")
+            if lines:
+                schema_context = "\n**Database Schema (for reference):**\n" + "\n".join(lines) + "\n"
+
+        return f"""You are an expert SQL query evaluator. Analyze whether the query output correctly answers the user's question.{schema_context}
 
 **User Question:**
 {query_text}

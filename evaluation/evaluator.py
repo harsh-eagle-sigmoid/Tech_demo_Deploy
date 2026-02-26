@@ -266,7 +266,8 @@ class Evaluator:
                          llm_validation_result = self.result_validator.validate_with_llm(
                              query_text=query_text,
                              generated_sql=cleaned_sql,
-                             db_url=self.agent_db_url
+                             db_url=self.agent_db_url,
+                             schema_info=self.structural_validator.schema_info
                          )
 
                          # Store LLM output validation results
@@ -421,7 +422,8 @@ class Evaluator:
                         llm_val = self.result_validator.validate_with_llm(
                             query_text=query_text,
                             generated_sql=cleaned_sql,
-                            db_url=self.agent_db_url
+                            db_url=self.agent_db_url,
+                            schema_info=self.structural_validator.schema_info
                         )
                         result["result_validation"] = {
                             "score": llm_val.score,

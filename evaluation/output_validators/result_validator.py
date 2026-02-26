@@ -195,7 +195,8 @@ class ResultValidator:
         self,
         query_text: str,
         generated_sql: str,
-        db_url: str
+        db_url: str,
+        schema_info: Optional[dict] = None
     ) -> ValidationResult:
         """
         Enhanced validation without ground truth using LLM-based reasoning.
@@ -248,7 +249,8 @@ class ResultValidator:
                 columns=result.columns or [],
                 rows=result.rows[:5] if result.rows else [],  # Sample first 5 rows for LLM
                 row_count=result.row_count,
-                execution_time_ms=result.execution_time_ms or 0.0
+                execution_time_ms=result.execution_time_ms or 0.0,
+                schema_info=schema_info
             )
 
             # Combined scoring:
