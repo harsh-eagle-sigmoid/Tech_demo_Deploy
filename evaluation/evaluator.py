@@ -160,13 +160,18 @@ class Evaluator:
                 # Find closest matching ground truth query (threshold: 0.70 similarity)
                 match = matcher.find_match(query_text, threshold=0.70)
                 if match:
-                    ground_truth_sql = match["sql"]
-                    complexity = match["complexity"]
-                    # NEW: Store expected_output if available in GT
-                    gt_expected_output = match.get("expected_output")
-                    logger.info(f"Evaluator found GT: {ground_truth_sql[:30]}...")
-                    if gt_expected_output:
-                        logger.info("GT includes expected output for validation")
+                    match_score = match.get("match_score", 0.0)
+                    # Only trust GT match if similarity >= 0.80 (high confidence)
+                    # Below 0.80 means a wrong/different GT was matched — fall back to heuristic
+                    if match_score >= 0.80:
+                        ground_truth_sql = match["sql"]
+                        complexity = match["complexity"]
+                        gt_expected_output = match.get("expected_output")
+                        logger.info(f"Evaluator found GT (score={match_score:.2f}): {ground_truth_sql[:30]}...")
+                    else:
+                        logger.warning(f"GT match score too low ({match_score:.2f}) for: {query_text} — using heuristic")
+                        ground_truth_sql = None
+                        gt_expected_output = None
                 else:
                     logger.warning(f"Evaluator could not find Ground Truth for: {query_text}")
                     ground_truth_sql = None
@@ -444,6 +449,12 @@ class Evaluator:
         # PASS if score meets threshold (default 0.7)
         threshold = settings.EVALUATION_THRESHOLD
         final_result = "PASS" if final_score >= threshold else "FAIL"
+
+        # Veto: if LLM Judge says FAIL and output match is low → wrong GT match, force FAIL
+        if llm_score == 0.0 and result_validation_score < 0.3:
+            final_result = "FAIL"
+            final_score = min(final_score, 0.35)
+            confidence = min(confidence, 0.3)
 
         # Confidence = average of LLM confidence and final score
         score_confidence = final_score

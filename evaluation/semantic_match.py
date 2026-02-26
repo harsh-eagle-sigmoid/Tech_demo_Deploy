@@ -83,6 +83,7 @@ class SemanticMatcher:
                     "sql": q.get("sql", ""),
                     "complexity": q.get("complexity", "simple"),
                     "query": query_text,
+                    "expected_output": q.get("expected_output"),
                 }
             self.initialize(gt_data)
             logger.info(f"Loaded {len(gt_data)} queries from data dict")
@@ -142,8 +143,10 @@ class SemanticMatcher:
 
         if best_score >= threshold:
             logger.info(f"Semantic Match Found: '{query_text}' -> '{best_entry['query_text']}' (Score: {best_score:.3f})")
-            return best_entry
-        
+            result = dict(best_entry)
+            result["match_score"] = float(best_score)
+            return result
+
         return None
 
 def get_semantic_matcher():
