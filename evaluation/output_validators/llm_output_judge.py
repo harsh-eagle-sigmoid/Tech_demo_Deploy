@@ -152,17 +152,19 @@ class LLMOutputJudge:
 
 **Evaluation Criteria:**
 
-1. **CORRECTNESS (50%)**: Does the output answer the user's question?
-   - Are the returned values reasonable and accurate?
+**Important:** A NULL or empty result is CORRECT and VALID if the SQL is logically correct but the requested data simply does not exist in the database (e.g., filtering by a year/date range not present in the data). Judge the SQL logic, not whether the data exists.
+
+1. **CORRECTNESS (50%)**: Does the SQL correctly answer the user's question?
+   - Is the SQL logic correct for the question asked?
+   - Are the returned values reasonable (NULL is valid if data doesn't exist)?
    - Is the data structure appropriate for the question?
    - Are column names meaningful and relevant?
-   - Does the output make semantic sense?
 
 2. **COMPLETENESS (30%)**: Is the output complete?
-   - Did it return the expected number of rows?
+   - Did it return the expected structure (even if 0 rows or NULL)?
    - Are all requested fields present?
-   - Is any critical data missing?
-   - Does it fully address the question?
+   - Is any critical data missing from the SQL logic?
+   - Does the SQL fully address the question?
 
 3. **QUALITY (20%)**: Is the output high quality?
    - Are values within reasonable ranges?

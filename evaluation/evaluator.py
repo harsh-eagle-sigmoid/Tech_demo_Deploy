@@ -48,10 +48,11 @@ class Evaluator:
                 agent_db_url = agent_record["db_url"]
                 self.schema_name = None  # not needed — schema_info takes precedence
             else:
-                # Legacy fallback
-                self.schema_name = "spend_data" if agent_type == "spend" else "demand_data"
-        except Exception:
-            self.schema_name = "spend_data" if agent_type == "spend" else "demand_data"
+                logger.warning(f"Agent '{agent_type}' is not registered in the platform — schema_info unavailable")
+                self.schema_name = None
+        except Exception as e:
+            logger.error(f"Failed to load agent registry for '{agent_type}': {e}")
+            self.schema_name = None
             schema_info_override = None
             agent_db_url = None
 
