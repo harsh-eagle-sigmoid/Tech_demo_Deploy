@@ -82,8 +82,10 @@ class EvaluationManager:
             (pattern_score * self.weights["pattern"])
         )
 
-        # Drift Veto: if drift quality is extremely low (junk/irrelevant query), force FAIL
-        if drift_quality_score < 0.1:
+        # Drift Veto: only veto if drift quality is extremely low AND structural/intent are also poor.
+        # This prevents false vetoes when no drift baseline exists (drift_score=1.0 → quality=0.0
+        # is a baseline-missing signal, not a "junk query" signal).
+        if drift_quality_score < 0.1 and structural_score < 0.5 and intent_score < 0.3:
             logger.warning(f"Drift Veto: quality {drift_quality_score:.2f} — query is irrelevant/junk")
             final_score = 0.0
             confidence = 0.0
