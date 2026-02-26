@@ -421,10 +421,8 @@ class ResultValidator:
             error=None,
             details={
                 'validation_type': 'gt_output_comparison',
-                'schema_diff': comparison.schema_diff,
                 'row_count_generated': gen_result.row_count,
                 'row_count_expected': gt_row_count,
-                'content_differences': comparison.differing_rows,
                 'gen_row_count': gen_result.row_count,
                 'execution_time_ms': gen_result.execution_time_ms,
                 'output_sample': output_sample
