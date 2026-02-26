@@ -412,6 +412,8 @@ class Evaluator:
                 result["confidence"] = heuristic_res["confidence"]
                 result["scores"] = heuristic_res["components"]
                 result["reasoning"] = "Heuristic Fallback (GT match rejected by LLM + output validation)"
+                # Clear the wrong GT comparison from steps so dashboard shows LLM validation instead
+                result["steps"].pop("result_validation", None)
 
                 # Add LLM output validation to supplement heuristic score
                 if self.agent_db_url:
