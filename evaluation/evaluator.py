@@ -395,11 +395,54 @@ class Evaluator:
                 result_validation_score
             )
 
-            result["final_score"] = final_score
-            result["final_result"] = final_result
-            result["confidence"] = confidence
+            # If both LLM and output validation failed badly, the GT match was likely wrong
+            # (e.g., "revenue > 10,000" matched to "revenue > 50,000").
+            # Fall back to heuristic + LLM output evaluation to give the query a fair score.
+            if llm_score == 0.0 and result_validation_score < 0.3:
+                logger.warning(
+                    f"Query {query_id}: GT match appears wrong "
+                    f"(LLM=FAIL, output={result_validation_score:.2f}). "
+                    f"Falling back to heuristic evaluation."
+                )
+                heuristic_res = self.manager.evaluate_heuristic(
+                    query_text, cleaned_sql, query_id=query_id
+                )
+                result["final_result"] = heuristic_res["final_result"]
+                result["final_score"] = heuristic_res["final_score"]
+                result["confidence"] = heuristic_res["confidence"]
+                result["scores"] = heuristic_res["components"]
+                result["reasoning"] = "Heuristic Fallback (GT match rejected by LLM + output validation)"
 
-            logger.info(f"Query {query_id} evaluation complete: {final_result} (score: {final_score:.2f})")
+                # Add LLM output validation to supplement heuristic score
+                if self.agent_db_url:
+                    try:
+                        llm_val = self.result_validator.validate_with_llm(
+                            query_text=query_text,
+                            generated_sql=cleaned_sql,
+                            db_url=self.agent_db_url
+                        )
+                        result["result_validation"] = {
+                            "score": llm_val.score,
+                            "confidence": llm_val.confidence,
+                            "execution_success": llm_val.execution_success,
+                            "validation_type": llm_val.details.get("validation_type"),
+                            "llm_correctness": llm_val.details.get("llm_correctness"),
+                            "llm_completeness": llm_val.details.get("llm_completeness"),
+                            "llm_quality": llm_val.details.get("llm_quality"),
+                            "llm_reasoning": llm_val.details.get("llm_reasoning"),
+                            "generated_time_ms": llm_val.generated_execution_time_ms,
+                            "error": llm_val.error,
+                            "details": llm_val.details
+                        }
+                        result["scores"]["result_validation"] = llm_val.score
+                    except Exception as e:
+                        logger.error(f"LLM validation failed in GT fallback: {e}")
+            else:
+                result["final_score"] = final_score
+                result["final_result"] = final_result
+                result["confidence"] = confidence
+
+            logger.info(f"Query {query_id} evaluation complete: {result['final_result']} (score: {result['final_score']:.2f})")
             return result
 
         except Exception as e:
@@ -453,12 +496,6 @@ class Evaluator:
         # Confidence = average of LLM confidence and final score
         score_confidence = final_score
         confidence = (llm_confidence + score_confidence) / 2.0
-
-        # Veto: if LLM Judge says FAIL and output match is low → wrong GT match, force FAIL
-        if llm_score == 0.0 and result_validation_score < 0.3:
-            final_result = "FAIL"
-            final_score = min(final_score, 0.35)
-            confidence = min(confidence, 0.3)
 
         return final_score, final_result, confidence
 
