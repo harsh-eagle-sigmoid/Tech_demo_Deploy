@@ -54,7 +54,17 @@ class DriftDetector:
         logger.info(f"Creating baseline for {agent_type} from {len(queries)} queries")
 
         embeddings = self.embed_batch(queries)
-        centroid   = np.mean(embeddings, axis=0).tolist()
+
+        # Filter out zero vectors — these are Bedrock failures (silent fallback in model_loader)
+        # A zero centroid causes every query to show 100% drift (cosine_similarity → 0.0)
+        valid_embeddings = [e for e in embeddings if np.linalg.norm(e) > 0.01]
+        if not valid_embeddings:
+            logger.error(f"All embeddings for {agent_type} are zero vectors — Bedrock likely failed. Baseline NOT saved.")
+            return {"error": "All embeddings are zero vectors — Bedrock failed"}
+        if len(valid_embeddings) < len(embeddings):
+            logger.warning(f"Baseline for {agent_type}: {len(embeddings) - len(valid_embeddings)} failed embeddings dropped, using {len(valid_embeddings)}/{len(embeddings)}")
+
+        centroid = np.mean(valid_embeddings, axis=0).tolist()
 
         try:
             conn = self._conn()

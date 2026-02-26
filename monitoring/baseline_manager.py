@@ -1,5 +1,3 @@
-import json
-import os
 from loguru import logger
 from monitoring.drift_detector import DriftDetector
 
@@ -11,9 +9,11 @@ def _get_agent_types() -> list:
         mgr = AgentManager()
         registered = [a["agent_name"] for a in mgr.get_all_agents()]
         if registered:
+            logger.info(f"baseline_manager: found {len(registered)} registered agents: {registered}")
             return registered
+        logger.warning("baseline_manager: platform.agents is empty, falling back to legacy list")
     except Exception as e:
-        logger.warning(f"Could not load agents from platform: {e}")
+        logger.warning(f"baseline_manager: could not load agents from platform ({e}), falling back to legacy list")
     return ["spend", "demand"]
 
 
