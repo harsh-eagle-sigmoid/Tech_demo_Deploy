@@ -52,6 +52,7 @@ from agent_platform.poller import start_polling, stop_polling
 from agent_platform.health_checker import start_health_checker, stop_health_checker
 from agent_platform.agent_manager import AgentManager
 from agent_platform.schema_monitor_scheduler import SchemaMonitorScheduler
+from database.init_db import migrate_schema_tables
 
 # ==================== GLOBAL STATE ====================
 schema_scheduler = None
@@ -71,6 +72,9 @@ async def startup_event():
             host=settings.DB_HOST, port=settings.DB_PORT, database=settings.DB_NAME, user=settings.DB_USER, password=settings.DB_PASSWORD
         )
         logger.info("DB Connection Pool initialized")
+
+        # Run schema migrations (idempotent — safe to run every startup)
+        migrate_schema_tables()
 
         # Load semantic matcher in background thread (heavy: loads embeddings)
         async def init_matcher():

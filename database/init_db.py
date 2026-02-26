@@ -331,6 +331,72 @@ def migrate_health_columns():
         return False
 
 
+def migrate_schema_tables():
+    """Create missing platform tables and columns for schema monitoring and data quality."""
+    try:
+        conn = psycopg2.connect(
+            host=settings.DB_HOST, port=settings.DB_PORT,
+            database=settings.DB_NAME, user=settings.DB_USER,
+            password=settings.DB_PASSWORD
+        )
+        cursor = conn.cursor()
+
+        # Add missing columns to platform.agents
+        for col, dtype, default in [
+            ("schema_version",      "INTEGER",   "0"),
+            ("schema_change_count", "INTEGER",   "0"),
+            ("last_schema_scan_at", "TIMESTAMP", "NULL"),
+        ]:
+            cursor.execute(f"""
+                ALTER TABLE platform.agents
+                ADD COLUMN IF NOT EXISTS {col} {dtype} DEFAULT {default}
+            """)
+
+        # Create platform.data_quality_issues if not exists
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS platform.data_quality_issues (
+                issue_id      SERIAL PRIMARY KEY,
+                agent_id      INTEGER NOT NULL REFERENCES platform.agents(agent_id) ON DELETE CASCADE,
+                schema_name   VARCHAR(100),
+                table_name    VARCHAR(200),
+                column_name   VARCHAR(200),
+                issue_type    VARCHAR(100),
+                severity      VARCHAR(20),
+                message       TEXT,
+                details       JSONB,
+                affected_rows BIGINT,
+                total_rows    BIGINT,
+                percentage    FLOAT,
+                discovered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # Create platform.schema_changes if not exists
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS platform.schema_changes (
+                change_id     SERIAL PRIMARY KEY,
+                agent_id      INTEGER NOT NULL REFERENCES platform.agents(agent_id) ON DELETE CASCADE,
+                change_type   VARCHAR(50),
+                schema_name   VARCHAR(100),
+                table_name    VARCHAR(200),
+                column_name   VARCHAR(200),
+                data_type     VARCHAR(100),
+                detected_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                gt_generated  BOOLEAN DEFAULT FALSE,
+                gt_query_count INTEGER DEFAULT 0
+            )
+        """)
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+        logger.info("Schema monitoring tables migrated successfully")
+        return True
+    except Exception as e:
+        logger.error(f"migrate_schema_tables failed: {e}")
+        return False
+
+
 def initialize_database():
 
     logger.info("Starting database initialization...")
@@ -355,6 +421,7 @@ def initialize_database():
         return False
 
     migrate_health_columns()
+    migrate_schema_tables()
 
     logger.info("Database initialization completed successfully!")
     return True
