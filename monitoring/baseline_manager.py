@@ -25,11 +25,22 @@ def initialize_baseline_if_needed():
 
         for agent_type in agent_types:
             baseline = detector._get_baseline(agent_type)
+            needs_create = False
+
             if not baseline:
-                logger.info(f"📉 No Baseline found for '{agent_type}'. Creating one...")
-                _create_baseline_from_file(agent_type, detector)
+                logger.info(f"📉 No baseline found for '{agent_type}'. Creating one...")
+                needs_create = True
             else:
-                logger.info(f"✅ Baseline exists for '{agent_type}'. Skipping creation.")
+                import numpy as np
+                norm = np.linalg.norm(baseline)
+                if norm < 0.01:
+                    logger.warning(f"⚠️  Baseline for '{agent_type}' is a zero vector (corrupted). Recreating...")
+                    needs_create = True
+                else:
+                    logger.info(f"✅ Baseline exists and is valid for '{agent_type}' (norm={norm:.3f}). Skipping creation.")
+
+            if needs_create:
+                _create_baseline_from_file(agent_type, detector)
 
     except Exception as e:
         logger.error(f"Failed to initialize baseline: {e}")
