@@ -126,10 +126,23 @@ class DriftDetector:
         return float(dot / norm) if norm != 0 else 0.0
 
     def detect(self, query_id: str, query_text: str, agent_type: str) -> Dict:
-        
+
         query_embedding = self.embed(query_text)
 
-       
+        # If Bedrock failed, embed() returns [0.0]*1024 silently.
+        # A zero query vector produces cosine_similarity=0 → drift_score=1.0 → false HIGH drift.
+        # Skip drift entirely when the embedding failed.
+        if np.linalg.norm(query_embedding) < 0.01:
+            logger.warning(f"Query embedding failed for {query_id} (Bedrock unavailable) — skipping drift detection")
+            return {
+                "query_id": query_id,
+                "agent_type": agent_type,
+                "drift_score": 0.0,
+                "drift_classification": "embedding_failed",
+                "similarity_to_baseline": 0.0,
+                "anomaly_flag": False
+            }
+
         baseline = self._get_baseline(agent_type)
 
         if baseline is None:
