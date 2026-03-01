@@ -72,20 +72,24 @@ def _health_check_cycle():
         # Step 1: Ping /health
         is_up = _ping_health(agent_url)
 
-        if not is_up:
-            new_status = "unhealthy"
-            detail = "Health check failed — agent unreachable"
-            _update_health(agent_id, new_status, detail)
-
-            # Alert only on transition (not every cycle)
-            if prev_status != "unhealthy":
-                logger.warning(f"Agent '{agent_name}' is now UNHEALTHY")
-            continue
-
-        # Step 2: Check telemetry gap
+        # Step 2: Check telemetry gap (always — even if ping fails)
         has_telemetry = _has_recent_telemetry(
             agent_name, settings.TELEMETRY_GAP_THRESHOLD_M
         )
+
+        if not is_up:
+            if has_telemetry:
+                # SDK-based agent: no HTTP service but telemetry is flowing → healthy
+                _update_health(agent_id, "healthy", None)
+                if prev_status != "healthy":
+                    logger.info(f"Agent '{agent_name}' is now HEALTHY (SDK mode — telemetry flowing)")
+            else:
+                new_status = "unhealthy"
+                detail = "Health check failed — agent unreachable and no recent telemetry"
+                _update_health(agent_id, new_status, detail)
+                if prev_status != "unhealthy":
+                    logger.warning(f"Agent '{agent_name}' is now UNHEALTHY")
+            continue
 
         if has_telemetry:
             _update_health(agent_id, "healthy", None)
