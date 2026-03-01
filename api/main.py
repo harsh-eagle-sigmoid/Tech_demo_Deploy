@@ -301,7 +301,22 @@ def process_ingest_background(query_id: str, req: IngestRequest):
             logger.error(f"Drift check failed: {e}")
 
     # Step 2: Evaluation — run 3-step (if ground truth found) or 4-layer heuristic
-    if req.sql and req.status == "success":
+    # Skip evaluation for non-data queries rejected by the agent
+    NON_DATA_PATTERNS = [
+        "this is not a database",
+        "not a database-related",
+        "not a data",
+        "please provide a question",
+        "i cannot answer",
+        "not related to",
+        "cannot generate sql",
+        "provide a question related",
+    ]
+    is_non_data_query = req.sql and any(p in req.sql.lower() for p in NON_DATA_PATTERNS)
+    if is_non_data_query:
+        logger.warning(f"[{query_id}] Skipping evaluation — non-data query rejected by agent: {req.query_text[:60]}")
+
+    if req.sql and req.status == "success" and not is_non_data_query:
         try:
             from evaluation.evaluator import Evaluator
             evaluator = Evaluator(req.agent_type)
