@@ -68,6 +68,12 @@ class GTStorage:
             return self._s3_exists(filename)
         return self._local_exists(filename)
 
+    def delete(self, filename: str) -> bool:
+        """Delete file. Returns True on success, False if not found or error."""
+        if self._s3:
+            return self._s3_delete(filename)
+        return self._local_delete(filename)
+
     # ------------------------------------------------------------------ #
     # S3 operations
     # ------------------------------------------------------------------ #
@@ -114,6 +120,16 @@ class GTStorage:
         except Exception:
             return False
 
+    def _s3_delete(self, filename: str) -> bool:
+        try:
+            key = self._s3_key(filename)
+            self._s3.delete_object(Bucket=self.bucket, Key=key)
+            logger.info(f"GTStorage: deleted s3://{self.bucket}/{key}")
+            return True
+        except Exception as e:
+            logger.error(f"GTStorage: S3 delete failed for {filename} — {e}")
+            return False
+
     # ------------------------------------------------------------------ #
     # Local filesystem operations
     # ------------------------------------------------------------------ #
@@ -146,6 +162,19 @@ class GTStorage:
 
     def _local_exists(self, filename: str) -> bool:
         return os.path.exists(self._local_path(filename))
+
+    def _local_delete(self, filename: str) -> bool:
+        path = self._local_path(filename)
+        try:
+            if os.path.exists(path):
+                os.remove(path)
+                logger.info(f"GTStorage: deleted local file {path}")
+                return True
+            logger.warning(f"GTStorage: local file not found for deletion — {path}")
+            return False
+        except Exception as e:
+            logger.error(f"GTStorage: local delete failed for {filename} — {e}")
+            return False
 
 
 # Module-level singleton

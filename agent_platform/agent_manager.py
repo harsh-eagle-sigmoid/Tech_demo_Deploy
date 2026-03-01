@@ -182,9 +182,23 @@ class AgentManager:
             deleted = cur.rowcount
 
             conn.commit()
-            logger.info(f"Agent '{agent_name}' (id={agent_id}) fully removed — all monitoring data cleaned.")
             cur.close()
             conn.close()
+
+            # 3. Delete GT file from S3 (or local storage)
+            try:
+                from agent_platform.gt_storage import get_gt_storage
+                gt_filename = f"{agent_name.lower().replace(' ', '_')}_queries.json"
+                gt_storage = get_gt_storage()
+                if gt_storage.exists(gt_filename):
+                    gt_storage.delete(gt_filename)
+                    logger.info(f"GT file '{gt_filename}' deleted for agent '{agent_name}'")
+                else:
+                    logger.info(f"No GT file found for agent '{agent_name}' (already gone or never generated)")
+            except Exception as gt_err:
+                logger.warning(f"GT file cleanup failed for agent '{agent_name}' (non-fatal): {gt_err}")
+
+            logger.info(f"Agent '{agent_name}' (id={agent_id}) fully removed — all monitoring data and GT file cleaned.")
             return deleted > 0
         except Exception as e:
             logger.error(f"delete_agent failed: {e}")
