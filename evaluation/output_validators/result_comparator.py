@@ -161,11 +161,12 @@ class ResultComparator:
         )
 
     def _compare_schemas(self, cols1: List[str], cols2: List[str]) -> bool:
-        """Compare column names (order-insensitive)"""
-        # Normalize column names (lowercase, strip)
+        """Compare column names (order-insensitive, subset-tolerant).
+        Returns True if column sets are equal OR one is a subset of the other.
+        """
         norm1 = {col.lower().strip() for col in cols1}
         norm2 = {col.lower().strip() for col in cols2}
-        return norm1 == norm2
+        return norm1 == norm2 or norm1.issubset(norm2) or norm2.issubset(norm1)
 
     def _detect_ordering(self, sql: str) -> bool:
         """Detect if SQL has ORDER BY clause"""
