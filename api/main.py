@@ -314,7 +314,28 @@ def process_ingest_background(query_id: str, req: IngestRequest):
     ]
     is_non_data_query = req.sql and any(p in req.sql.lower() for p in NON_DATA_PATTERNS)
     if is_non_data_query:
-        logger.warning(f"[{query_id}] Skipping evaluation — non-data query rejected by agent: {req.query_text[:60]}")
+        logger.warning(f"[{query_id}] Non-data query rejected by agent — marking as FAIL: {req.query_text[:60]}")
+        try:
+            from evaluation.evaluator import Evaluator
+            from datetime import datetime
+            evaluator = Evaluator(req.agent_type)
+            evaluator.store_result({
+                "query_id": query_id,
+                "query_text": req.query_text,
+                "generated_sql": req.sql,
+                "ground_truth_sql": None,
+                "complexity": "unknown",
+                "agent_type": req.agent_type,
+                "timestamp": datetime.now().isoformat(),
+                "steps": {},
+                "scores": {"structural": 0.0},
+                "final_result": "FAIL",
+                "final_score": 0.0,
+                "confidence": 0.0,
+                "reasoning": "Query rejected — not a data-related question"
+            })
+        except Exception as e:
+            logger.error(f"Failed to store rejected query result: {e}")
 
     if req.sql and req.status == "success" and not is_non_data_query:
         try:
