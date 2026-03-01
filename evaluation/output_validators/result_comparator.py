@@ -63,6 +63,39 @@ class ResultComparator:
         details['schema_match'] = schema_match
 
         if not schema_match:
+            # Try partial comparison on common columns instead of hard failing
+            norm1 = [c.lower().strip() for c in result1_columns]
+            norm2 = [c.lower().strip() for c in result2_columns]
+            common = [c for c in norm1 if c in norm2]
+            if common and len(result1_rows) == len(result2_rows):
+                # Project both result sets onto common columns only
+                idx1 = [norm1.index(c) for c in common]
+                idx2 = [norm2.index(c) for c in common]
+                projected1 = [tuple(r[i] for i in idx1) for r in result1_rows]
+                projected2 = [tuple(r[i] for i in idx2) for r in result2_rows]
+                # Column overlap ratio as schema penalty
+                overlap_ratio = len(common) / max(len(norm1), len(norm2))
+                # Compare content on common columns
+                try:
+                    sorted1 = sorted(projected1, key=lambda r: self._make_sortable(r))
+                    sorted2 = sorted(projected2, key=lambda r: self._make_sortable(r))
+                    matched = sum(1 for r1, r2 in zip(sorted1, sorted2) if self._rows_equal(r1, r2))
+                    content_match_rate = matched / len(projected1) if projected1 else 1.0
+                except Exception:
+                    content_match_rate = self._compare_as_sets(projected1, projected2)
+                partial_score = overlap_ratio * content_match_rate
+                details['common_columns'] = common
+                details['overlap_ratio'] = overlap_ratio
+                details['content_match_rate'] = content_match_rate
+                logger.debug(f"Schema mismatch — partial comparison on {len(common)} common columns: overlap={overlap_ratio:.2f}, content={content_match_rate:.2f}")
+                return ComparisonResult(
+                    match=False,
+                    score=max(0.1, partial_score),
+                    schema_match=False,
+                    row_count_match=True,
+                    content_match_rate=content_match_rate,
+                    details=details
+                )
             return ComparisonResult(
                 match=False,
                 score=0.1,  # Small credit for trying
