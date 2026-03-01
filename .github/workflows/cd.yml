@@ -99,6 +99,18 @@ jobs:
             --from-literal=AWS_SECRET_ACCESS_KEY="$AWS_SECRET" \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Inject Azure secrets into K8s secret
+        env:
+          AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          AZURE_AD_CLIENT_SECRET: ${{ secrets.AZURE_AD_CLIENT_SECRET }}
+        run: |
+          kubectl create secret generic unilever-secrets \
+            --namespace=unilever-poc \
+            --from-literal=DB_PASSWORD="postgres" \
+            --from-literal=AZURE_OPENAI_API_KEY="$AZURE_OPENAI_API_KEY" \
+            --from-literal=AZURE_AD_CLIENT_SECRET="$AZURE_AD_CLIENT_SECRET" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Apply Kubernetes manifests
         run: |
           kubectl apply -f k8s/secret.yaml
