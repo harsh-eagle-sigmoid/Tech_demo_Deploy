@@ -263,8 +263,9 @@ class GroundTruthGenerator:
         """
         storage = get_gt_storage()
 
-        # Determine filename
-        filename = f"{agent_name.lower().replace(' ', '_')}_queries.json"
+        # Determine filename — must match the pattern used by baseline_manager and evaluator
+        normalized = agent_name.lower().replace(' ', '_').replace('_agent', '')
+        filename = f"{normalized}_agent_queries.json"
 
         # Execute each query and capture output
         enriched_queries = []
