@@ -115,34 +115,64 @@ class SemanticMatcher:
         self.is_ready = True
         logger.info("Semantic Matcher initialized successfully.")
 
+    # Polarity word groups — queries with opposite groups are conflicting
+    _POLARITY_LESS = frozenset({
+        'less than', 'fewer than', 'below', 'under', 'smaller than',
+        'at most', 'no more than', 'not more than', 'no greater than'
+    })
+    _POLARITY_MORE = frozenset({
+        'more than', 'greater than', 'above', 'over', 'larger than',
+        'at least', 'no less than', 'not less than', 'no fewer than'
+    })
+
+    def _has_polarity_conflict(self, query1: str, query2: str) -> bool:
+        """Return True if one query says 'less than' while the other says 'more than'."""
+        q1 = query1.lower()
+        q2 = query2.lower()
+        q1_less = any(t in q1 for t in self._POLARITY_LESS)
+        q1_more = any(t in q1 for t in self._POLARITY_MORE)
+        q2_less = any(t in q2 for t in self._POLARITY_LESS)
+        q2_more = any(t in q2 for t in self._POLARITY_MORE)
+        return (q1_less and q2_more) or (q1_more and q2_less)
+
     def find_match(self, query_text: str, threshold: float = 0.70) -> Optional[Dict]:
         """
         Find nearest neighbor in Ground Truth.
+        Skips matches with conflicting polarity (e.g. 'less than' vs 'more than').
         """
         if not self.is_ready:
             return None
 
         query_vec = self.model.encode(query_text)
-        
+
         best_score = -1.0
         best_entry = None
 
         # Explicit cosine similarity
         q_norm = np.linalg.norm(query_vec)
-        
+
         for vec, entry in self.index:
             v_norm = np.linalg.norm(vec)
             if v_norm == 0 or q_norm == 0:
-                score = 0
+                score = 0.0
             else:
-                score = np.dot(query_vec, vec) / (q_norm * v_norm)
-            
+                score = float(np.dot(query_vec, vec) / (q_norm * v_norm))
+
             if score > best_score:
                 best_score = score
                 best_entry = entry
 
-        if best_score >= threshold:
-            logger.info(f"Semantic Match Found: '{query_text}' -> '{best_entry['query_text']}' (Score: {best_score:.3f})")
+        if best_score >= threshold and best_entry is not None:
+            gt_query_text = best_entry.get('query_text', '')
+            # Reject match if polarity is opposite ("less than" vs "more than")
+            if self._has_polarity_conflict(query_text, gt_query_text):
+                logger.warning(
+                    f"Polarity conflict — rejecting GT match: "
+                    f"'{query_text}' vs '{gt_query_text}' (score={best_score:.3f})"
+                )
+                return None
+
+            logger.info(f"Semantic Match Found: '{query_text}' -> '{gt_query_text}' (Score: {best_score:.3f})")
             result = dict(best_entry)
             result["match_score"] = float(best_score)
             return result

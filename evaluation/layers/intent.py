@@ -99,6 +99,11 @@ class IntentLayer:
         if self._has_comparison_context(query_lower):
             intents.add('filtering')
 
+        # Check for text search / LIKE filtering
+        # Covers: "have 'x' in their name", "containing x", "called x", "case-insensitive"
+        if self._has_text_search_context(query_lower):
+            intents.add('filtering')
+
         # Check for "per" or "by" with dimension columns (grouping)
         if self._has_grouping_context(query_lower):
             intents.add('grouping')
@@ -123,6 +128,24 @@ class IntentLayer:
             intents.add('limiting')
 
         return intents
+
+    def _has_text_search_context(self, query_lower: str) -> bool:
+        """Check if query implies LIKE / text-search filtering."""
+        text_search_patterns = [
+            r"have\s+['\"]",           # have 'google' / have "google"
+            r"contain",                # containing, contains
+            r"whose\s+name",           # whose name includes
+            r"with\s+(the\s+)?name",   # with name / with the name
+            r"\bnamed\b",              # named instagram
+            r"\bcalled\b",             # called instagram
+            r"in\s+(their|its|the)\s+name",  # in their/its/the name
+            r"case.insensitive",       # case-insensitive
+            r"matching\s+['\"]",       # matching 'pattern'
+            r"starts?\s+with",         # starts with / start with
+            r"ends?\s+with",           # ends with
+            r"includes?\s+['\"]",      # includes 'x'
+        ]
+        return any(re.search(p, query_lower) for p in text_search_patterns)
 
     def _has_comparison_context(self, query_lower: str) -> bool:
         """Check if query has comparison operators indicating filtering intent"""
@@ -222,14 +245,15 @@ class IntentLayer:
     def _calculate_intent_score(self, requested: Set[str], fulfilled: Set[str], sql_upper: str) -> float:
         """Calculate final intent score based on requested vs fulfilled intents"""
 
-        # If no specific intents detected, assume it's a basic select
+        # If no specific intents detected, assume it's a basic select/list query
         if not requested:
-            # Basic query should have basic SQL
-            if "WHERE" not in sql_upper and "GROUP BY" not in sql_upper and "ORDER BY" not in sql_upper:
-                return 1.0  # Perfect for simple list query
+            # A WHERE clause is always acceptable — it's filtering, not complexity.
+            # Only penalise if SQL adds GROUP BY or aggregations that weren't requested.
+            has_agg = bool(re.search(r'\b(SUM|COUNT|AVG|MAX|MIN)\s*\(', sql_upper))
+            if "GROUP BY" not in sql_upper and not has_agg:
+                return 1.0  # Simple filtering query — any WHERE/ORDER BY is fine
             else:
-                # Unrequested complexity
-                return 0.8
+                return 0.8  # Aggregation/grouping added but not requested
 
         # Calculate matches
         matched = requested & fulfilled

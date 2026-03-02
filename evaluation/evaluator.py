@@ -478,15 +478,19 @@ class Evaluator:
         """
         Calculate weighted final score for evaluation with ground truth.
 
-        Weighting:
+        Weighting (with result validation):
         - Structural: 40% (syntax, schema validity)
-        - Semantic: 15% (SQL component similarity)
-        - LLM Judge: 15% (AI reasoning about correctness)
-        - Result Validation: 30% (actual output comparison - MOST IMPORTANT)
+        - Semantic:   15% (SQL component similarity)
+        - LLM Judge:  15% (AI reasoning about correctness)
+        - Result:     30% (actual output comparison — most important)
+
+        Weighting (no result validation available):
+        - Structural: 60%
+        - Semantic:   10%
+        - LLM Judge:  30%
         """
-        # Check if result validation was performed
         if result_validation_score is None or result_validation_score == 0.0:
-            # Fallback to old weighting if result validation not available
+            # No result validation — use legacy weights
             final_score = (
                 0.60 * structural_score +
                 0.10 * semantic_score +
@@ -494,24 +498,24 @@ class Evaluator:
             )
             logger.info("Using legacy scoring (no result validation)")
         else:
-            # NEW: Include result validation in score
+            # Full weighted formula — all four layers always contribute
             final_score = (
                 0.40 * structural_score +
                 0.15 * semantic_score +
                 0.15 * llm_score +
                 0.30 * result_validation_score
             )
-            logger.info(f"Using enhanced scoring with result validation: "
-                       f"struct={structural_score:.2f}, sem={semantic_score:.2f}, "
-                       f"llm={llm_score:.2f}, result={result_validation_score:.2f}")
+            logger.info(
+                f"Scoring: struct={structural_score:.2f}, sem={semantic_score:.2f}, "
+                f"llm={llm_score:.2f}, result={result_validation_score:.2f} → {final_score:.2f}"
+            )
 
         # PASS if score meets threshold (default 0.7)
         threshold = settings.EVALUATION_THRESHOLD
         final_result = "PASS" if final_score >= threshold else "FAIL"
 
         # Confidence = average of LLM confidence and final score
-        score_confidence = final_score
-        confidence = (llm_confidence + score_confidence) / 2.0
+        confidence = (llm_confidence + final_score) / 2.0
 
         return final_score, final_result, confidence
 

@@ -23,15 +23,17 @@ class LLMJudge:
         
         try:
             
-            system_prompt = """You are an expert SQL evaluator. Your task is to determine if the generated SQL query correctly answers the user's question.
+            system_prompt = """You are an expert SQL evaluator. Your PRIMARY task is to determine if the generated SQL query correctly answers the USER'S QUESTION — not just whether it matches the Ground Truth SQL.
 
-Evaluation Criteria:
-1. **Correctness**: Does the SQL query retrieve the right data to answer the question?
-2. **Completeness**: Does it include all necessary components (filters, aggregations, etc.)?
-3. **Logic**: Are the table joins, WHERE conditions, and GROUP BY clauses correct?
+**PRIMARY EVALUATION**: Does the generated SQL correctly answer what the user asked?
+1. **Correctness**: Does the SQL retrieve the right data to answer the question?
+2. **Completeness**: Does it include all necessary components (filters, aggregations, joins)?
+3. **Logic**: Are the table joins, WHERE conditions, and GROUP BY clauses logically correct?
 
-Compare the generated SQL with the ground truth SQL. Consider them equivalent if they produce the same result, even if syntax differs slightly.
-Refine your judgment:
+**The Ground Truth SQL is a REFERENCE ONLY** — it may use different numeric values, different parameter ranges, or slightly different phrasing. Do NOT fail a query just because it differs numerically from Ground Truth.
+
+**PASS conditions**:
+- **PASS** if the generated SQL uses numeric values, ranges, or thresholds that exactly match what the user stated in their query (e.g., user says "between 50000 and 2000000" and SQL uses BETWEEN 50000 AND 2000000 — this is CORRECT even if Ground Truth uses different numbers).
 - **PASS** if the generated SQL uses a VIEW (e.g., `product_profitability`) instead of complex JOINs. This is a VALID logic optimization.
 - **PASS** if the generated SQL uses `LIMIT 1` but Ground Truth uses `LIMIT 100` (unless "top 100" was explicitly asked).
 - **PASS** if the generated SQL ranks by a raw column vs Ground Truth ranking by `AVG/SUM` of that column (logic is similar).
@@ -41,17 +43,19 @@ Refine your judgment:
 - **IGNORE** additional `ORDER BY` clauses unless the user asked for a specific order.
 - **IGNORE** `NULLIF` or safety checks (e.g. division by zero protection).
 - **IGNORE** extra columns in SELECT clause if the core answer is present.
+- **IGNORE** differences in numeric literal values between generated SQL and Ground Truth if the generated SQL matches the user's stated values.
 
 **FAIL ONLY IF**:
 - The SQL is syntactically invalid.
 - The SQL queries the WRONG table or WRONG column (e.g. querying `products` when `sales` is needed).
+- The SQL applies a filter the user did NOT ask for, or omits a filter the user DID ask for.
 - The SQL returns completely unrelated data.
 
-**CRITICAL INSTRUCTIONS FOR FLEXIBILITY**:
-- **SUPERIOR LOGIC**: If the generated SQL uses a more complex/accurate logic than the Ground Truth (e.g. calculating reorder quantity vs simple threshold), it MUST **PASS**.
-- **MISSING COLUMNS**: If the generated SQL selects the core columns but misses 'availability' or 'description', it MUST **PASS**.
+**CRITICAL INSTRUCTIONS**:
+- **SUPERIOR LOGIC**: If the generated SQL uses more complex/accurate logic than the Ground Truth, it MUST **PASS**.
+- **MISSING COLUMNS**: If the generated SQL selects core columns but misses optional ones like 'availability' or 'description', it MUST **PASS**.
 - **CASE SENSITIVITY**: Ignore case mismatches in string literals (e.g. 'Haircare' vs 'haircare').
-HTML_BLOCK_END
+- **NUMERIC VALUES**: If the user's query specifies a numeric range (e.g., "between 50,000 and 2,000,000"), the generated SQL using those exact values MUST **PASS** regardless of what the Ground Truth SQL uses.
 
 Return your evaluation in this exact format:
 VERDICT: [PASS/FAIL]

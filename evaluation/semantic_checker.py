@@ -166,9 +166,12 @@ class SemanticChecker:
         from_score = self._list_similarity(comp1_from, comp2_from)
         scores.append(("from", from_score, 0.15))
 
-        # WHERE uses raw comparison (conditions are complex, alias stripping may break logic)
-        where_score = self._list_similarity(comp1["where"], comp2["where"])
+        # WHERE: use structure-aware comparison so that clauses with the same
+        # column+operator but different literal values (e.g. BETWEEN 5000 AND 20000
+        # vs BETWEEN 50000 AND 2000000) are not penalised as completely different.
+        where_score = self._where_similarity(comp1["where"], comp2["where"])
         scores.append(("where", where_score, 0.2))
+
 
         group_score = self._list_similarity(comp1_group, comp2_group)
         scores.append(("group_by", group_score, 0.1))
@@ -184,6 +187,96 @@ class SemanticChecker:
         logger.debug(f"SemanticChecker: {', '.join(f'{name}={score:.2f}' for name, score, _ in scores)} → total={total_score:.3f}")
 
         return total_score
+
+    def _extract_where_structure(self, where_str: str) -> set:
+        """Extract (column, operator) pairs from a WHERE clause string.
+        Used to compare clause structure independently of literal values.
+        """
+        pairs = set()
+
+        # Strip table-alias prefixes so 'o.revenue' becomes 'revenue'
+        where_str = re.sub(r'\b\w+\.(\w+)', r'\1', where_str)
+
+        _skip = {'and', 'or', 'not', 'where', 'is', 'in', 'like', 'between'}
+
+        # BETWEEN: column BETWEEN x AND y
+        for m in re.finditer(r'(\w+)\s+between\b', where_str):
+            col = m.group(1)
+            if col not in _skip:
+                pairs.add((col, 'between'))
+
+        # Comparison operators: >=, <=, <>, !=, >, <, =
+        for m in re.finditer(r'(\w+)\s*(>=|<=|<>|!=|>|<|=)\s*[\d\'"]', where_str):
+            col = m.group(1)
+            if col not in _skip:
+                pairs.add((col, m.group(2)))
+
+        # LIKE: column LIKE '%pattern%'
+        for m in re.finditer(r'(\w+)\s+like\b', where_str):
+            col = m.group(1)
+            if col not in _skip:
+                pairs.add((col, 'like'))
+
+        # IN: column IN (...)
+        for m in re.finditer(r'(\w+)\s+in\s*\(', where_str):
+            col = m.group(1)
+            if col not in _skip:
+                pairs.add((col, 'in'))
+
+        # IS NULL / IS NOT NULL
+        for m in re.finditer(r'(\w+)\s+is\s+(?:not\s+)?null', where_str):
+            pairs.add((m.group(1), 'is_null'))
+
+        return pairs
+
+    def _where_similarity(self, where1: list, where2: list) -> float:
+        """Structure-aware WHERE clause similarity.
+
+        Scoring:
+          - Both empty                                             → 1.0
+          - One empty, one not                                     → 0.0
+          - Exact string match                                     → 1.0
+          - Same (column, operator) pairs, different literal vals  → 0.7
+            (e.g. BETWEEN 5000 AND 20000 vs BETWEEN 50000 AND 2000000)
+          - Partial (column, op) overlap                          → up to 0.65
+        """
+        if not where1 and not where2:
+            return 1.0
+        if not where1 or not where2:
+            return 0.0
+
+        w1 = where1[0].strip().lower()
+        w2 = where2[0].strip().lower()
+
+        if w1 == w2:
+            return 1.0
+
+        pairs1 = self._extract_where_structure(w1)
+        pairs2 = self._extract_where_structure(w2)
+
+        if not pairs1 and not pairs2:
+            return 1.0
+        if not pairs1 or not pairs2:
+            return 0.0
+
+        # Full structural match — same columns + operators, different literal values
+        if pairs1 == pairs2:
+            return 0.7
+
+        # Partial overlap on (column, operator) pairs
+        intersection = len(pairs1 & pairs2)
+        union = len(pairs1 | pairs2)
+        pair_overlap = intersection / union if union else 0.0
+
+        # Partial overlap on column names alone
+        cols1 = {col for col, _ in pairs1}
+        cols2 = {col for col, _ in pairs2}
+        col_overlap = (
+            len(cols1 & cols2) / max(len(cols1), len(cols2))
+            if (cols1 or cols2) else 0.0
+        )
+
+        return min(0.65, pair_overlap * 0.6 + col_overlap * 0.35)
 
     def _list_similarity(self, list1: list, list2: list) -> float:
         """Calculate similarity between two lists using Overlap Coefficient."""

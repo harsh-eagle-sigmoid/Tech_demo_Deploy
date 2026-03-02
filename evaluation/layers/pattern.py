@@ -39,10 +39,11 @@ class PatternLayer:
             penalties += 0.15
             issues.append("LIMIT used without ORDER BY")
 
-        # 3. Missing LIMIT on SELECT *
-        if re.search(r"SELECT\s+\*", sql_upper) and "LIMIT" not in sql_upper:
+        # 3. Missing LIMIT on SELECT * (only when no WHERE filter — unfiltered full-table scan)
+        # A filtered SELECT * (with WHERE) is perfectly valid for "list all X matching Y"
+        if re.search(r"SELECT\s+\*", sql_upper) and "LIMIT" not in sql_upper and "WHERE" not in sql_upper:
             penalties += 0.10
-            issues.append("SELECT * used without LIMIT")
+            issues.append("SELECT * without LIMIT or WHERE filter")
 
         # 4. Cartesian product risk (multiple tables without JOIN or WHERE)
         from_parts = sql_upper.split("FROM")
