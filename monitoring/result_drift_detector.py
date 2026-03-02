@@ -81,6 +81,8 @@ class ResultDriftDetector:
                 for col_name, val in zip(columns, row):
                     if isinstance(val, (int, float)) and not isinstance(val, bool):
                         col_key = col_name.lower()
+                        if not self._is_metric_column(col_key):
+                            continue
                         column_values.setdefault(col_key, []).append(float(val))
 
         if not column_values:
@@ -222,7 +224,7 @@ class ResultDriftDetector:
         if not baseline:
             return self._skip("no_baseline", query_id, agent_type)
 
-        # Extract numeric column values that have a baseline
+        # Extract numeric column values that have a baseline (metrics only)
         col_values: Dict[str, List[float]] = {}
         for row in result_rows:
             if len(row) != len(columns):
@@ -230,7 +232,7 @@ class ResultDriftDetector:
             for col_name, val in zip(columns, row):
                 if isinstance(val, (int, float)) and not isinstance(val, bool):
                     col_key = col_name.lower()
-                    if col_key in baseline:
+                    if col_key in baseline and self._is_metric_column(col_key):
                         col_values.setdefault(col_key, []).append(float(val))
 
         if not col_values:
@@ -301,6 +303,30 @@ class ResultDriftDetector:
                 if edges[i] <= val < edges[i + 1]:
                     return i
         return -1  # Out of range
+
+    @staticmethod
+    def _is_metric_column(col_name: str) -> bool:
+        """
+        Return True only for real business metric columns.
+        Excludes row identifiers, dates, names, and category labels —
+        these have distributions that naturally vary with filtering and
+        produce meaningless (extremely high) PSI scores.
+        """
+        col = col_name.lower().strip()
+        # Exact names to exclude
+        non_metrics = {
+            'id', 'c_date', 'date', 'campaign_id', 'category',
+            'campaign_name', 'name', 'status', 'type', 'timestamp',
+            'created_at', 'updated_at', 'row_id', 'log_id',
+        }
+        if col in non_metrics:
+            return False
+        # Suffix patterns that indicate identifiers / dates / labels
+        non_metric_suffixes = ('_id', '_date', '_at', '_time', '_name',
+                               '_code', '_key', '_status', '_type', '_label')
+        if any(col.endswith(s) for s in non_metric_suffixes):
+            return False
+        return True
 
     @staticmethod
     def _compute_psi(expected_pct: List[float], actual_pct: List[float]) -> float:
