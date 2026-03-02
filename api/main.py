@@ -362,14 +362,29 @@ def process_ingest_background(query_id: str, req: IngestRequest):
                     _rows = _output_sample.get("rows", [])
                     _cols = _output_sample.get("columns", [])
                     if _rows and _cols:
-                        from monitoring.result_drift_detector import ResultDriftDetector
-                        _psi = ResultDriftDetector().detect_psi(
-                            agent_type=req.agent_type,
-                            query_id=query_id,
-                            result_rows=_rows,
-                            columns=_cols
+                        # Skip PSI for aggregate queries: SUMs/AVGs return values in a
+                        # completely different scale than the row-level baseline, which
+                        # would always produce inflated PSI regardless of agent quality.
+                        import re as _re
+                        _sql_check = (req.sql or "").upper()
+                        _is_aggregate = (
+                            bool(_re.search(r'\bGROUP\s+BY\b', _sql_check)) or
+                            bool(_re.search(r'\b(SUM|AVG|COUNT|MAX|MIN)\s*\(', _sql_check))
                         )
-                        if _psi.get("is_anomaly"):
+                        _psi = None
+                        if _is_aggregate:
+                            logger.debug(
+                                f"PSI result drift skipped for {query_id}: aggregate_query"
+                            )
+                        else:
+                            from monitoring.result_drift_detector import ResultDriftDetector
+                            _psi = ResultDriftDetector().detect_psi(
+                                agent_type=req.agent_type,
+                                query_id=query_id,
+                                result_rows=_rows,
+                                columns=_cols
+                            )
+                        if _psi and _psi.get("is_anomaly"):
                             logger.warning(
                                 f"High PSI result drift [{query_id}]: "
                                 f"overall_psi={_psi['overall_psi']:.4f}, "
@@ -690,7 +705,7 @@ def get_result_drift(agent_type: Optional[str] = Query(None)):
             FROM monitoring.result_drift_monitoring rd
             LEFT JOIN monitoring.queries q ON rd.query_id = q.query_id
             WHERE LOWER(rd.drift_classification) = 'high' {agent_and}
-            ORDER BY rd.overall_psi DESC LIMIT 20
+            ORDER BY rd.created_at DESC LIMIT 20
         """, params)
         high_samples = []
         for r in cur.fetchall():
