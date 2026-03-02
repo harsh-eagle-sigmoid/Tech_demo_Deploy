@@ -130,7 +130,7 @@ class GroundTruthGenerator:
                 relationships=relationships,
                 sample_data=sample_data,
                 num_queries=batch_size
-            )
+            ) 
 
             # Generate queries for this batch
             try:

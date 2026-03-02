@@ -13,6 +13,7 @@ import json
 import math
 import psycopg2
 import numpy as np
+from decimal import Decimal
 from typing import Dict, List, Optional, Tuple
 from loguru import logger
 from config.settings import settings
@@ -305,6 +306,133 @@ class ResultDriftDetector:
         return -1  # Out of range
 
     @staticmethod
+    def _is_numeric_type(data_type: str) -> bool:
+        """Return True if a DB column data_type is a numeric type (not text/date/bool)."""
+        if not data_type:
+            return False
+        dt = data_type.lower()
+        numeric_keywords = ('int', 'float', 'double', 'numeric', 'decimal',
+                            'real', 'money', 'number', 'bigint', 'smallint')
+        return any(kw in dt for kw in numeric_keywords)
+
+    def create_baseline_from_db(
+        self,
+        agent_type: str,
+        db_url: str,
+        schema_info: Dict[str, Dict[str, str]],
+        sample_limit: int = 10000
+    ) -> Dict:
+        """
+        Build PSI baseline from the agent's actual database tables (full-population).
+
+        This avoids the GT-sample bias where baselines built from filtered query results
+        (e.g. clicks < 500) produce inflated PSI scores against normal result ranges.
+
+        Args:
+            agent_type:   Normalized agent name (e.g. 'marketing')
+            db_url:       Connection string for the agent's database
+            schema_info:  {schema.table: {col_name: data_type}} from AgentManager
+            sample_limit: Max rows to fetch per table (default 10 000)
+
+        Returns:
+            {"agent_type": ..., "columns_baselined": [...], "sample_count": ...}
+        """
+        column_values: Dict[str, List[float]] = {}
+
+        # Identify numeric metric columns per table — use qualified names only
+        # to avoid processing the same table twice (AgentManager adds both
+        # "schema.table" and "table" entries).
+        numeric_cols_by_table: Dict[str, List[str]] = {}
+        for table_name, cols in schema_info.items():
+            if '.' not in table_name:
+                continue  # skip unqualified duplicates
+            metric_cols = [
+                col for col, dtype in cols.items()
+                if self._is_metric_column(col) and self._is_numeric_type(dtype)
+            ]
+            if metric_cols:
+                numeric_cols_by_table[table_name] = metric_cols
+
+        if not numeric_cols_by_table:
+            logger.warning(
+                f"No numeric metric columns in schema for agent '{agent_type}' "
+                f"— result baseline from DB skipped"
+            )
+            return {"agent_type": agent_type, "columns_baselined": [], "sample_count": 0}
+
+        # Sample each table and collect values
+        try:
+            conn = psycopg2.connect(db_url)
+            cur  = conn.cursor()
+
+            for table_name, metric_cols in numeric_cols_by_table.items():
+                col_sql = ", ".join(f'"{c}"' for c in metric_cols)
+                try:
+                    cur.execute(
+                        f'SELECT {col_sql} FROM {table_name} LIMIT %s',
+                        (sample_limit,)
+                    )
+                    rows = cur.fetchall()
+                    for row in rows:
+                        for col_name, val in zip(metric_cols, row):
+                            if (val is not None
+                                    and isinstance(val, (int, float, Decimal))
+                                    and not isinstance(val, bool)):
+                                col_key = col_name.lower()
+                                column_values.setdefault(col_key, []).append(float(val))
+                    logger.debug(
+                        f"Sampled {len(rows)} rows from '{table_name}' "
+                        f"for agent '{agent_type}' result baseline"
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to sample table '{table_name}': {e}")
+
+            cur.close()
+            conn.close()
+        except Exception as e:
+            logger.error(
+                f"DB connection failed for agent '{agent_type}' result baseline: {e}"
+            )
+            return {"agent_type": agent_type, "columns_baselined": [], "sample_count": 0}
+
+        if not column_values:
+            logger.warning(f"No numeric values found in DB for agent '{agent_type}'")
+            return {"agent_type": agent_type, "columns_baselined": [], "sample_count": 0}
+
+        # Build quantile buckets (same logic as create_baseline)
+        columns_baselined = []
+        total_samples = 0
+
+        for col_name, values in column_values.items():
+            if len(values) < self.MIN_SAMPLES:
+                logger.debug(
+                    f"Skipping DB column '{col_name}' — only {len(values)} samples "
+                    f"(need {self.MIN_SAMPLES})"
+                )
+                continue
+            try:
+                edges, expected_pct = self._build_quantile_buckets(values)
+                self._store_baseline(agent_type, col_name, edges, expected_pct, len(values))
+                columns_baselined.append(col_name)
+                total_samples += len(values)
+                logger.info(
+                    f"Result baseline (DB) created for '{agent_type}.{col_name}' "
+                    f"({len(values)} samples, {len(edges)-1} buckets)"
+                )
+            except Exception as e:
+                logger.warning(f"Failed to baseline DB column '{col_name}': {e}")
+
+        logger.info(
+            f"Result baseline (DB) complete for '{agent_type}': "
+            f"{len(columns_baselined)} columns — {columns_baselined}"
+        )
+        return {
+            "agent_type": agent_type,
+            "columns_baselined": columns_baselined,
+            "sample_count": total_samples
+        }
+
+    @staticmethod
     def _is_metric_column(col_name: str) -> bool:
         """
         Return True only for real business metric columns.
@@ -414,7 +542,7 @@ class ResultDriftDetector:
 
     def _skip(self, reason: str, query_id: str, agent_type: str) -> Dict:
         """Return a no-op result when PSI cannot be computed."""
-        logger.debug(f"PSI result drift skipped for {query_id}: {reason}")
+        logger.debug(f"PSI result drift skipped for {query_id} ({agent_type}): {reason}")
         return {
             "psi_scores":          {},
             "overall_psi":         0.0,
