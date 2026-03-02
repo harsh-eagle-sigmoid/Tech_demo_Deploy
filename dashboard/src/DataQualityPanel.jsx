@@ -67,13 +67,13 @@ const DataQualityPanel = ({ agentId, agentName }) => {
   const getSeverityIcon = (severity) => {
     switch (severity) {
       case 'critical':
-        return '🔴';
+        return '';
       case 'warning':
-        return '⚠️';
+        return '';
       case 'info':
-        return 'ℹ️';
+        return '';
       default:
-        return '●';
+        return '';
     }
   };
 
@@ -109,7 +109,7 @@ const DataQualityPanel = ({ agentId, agentName }) => {
     return (
       <div className="data-quality-panel">
         <div className="error">
-          <p>❌ Error: {error}</p>
+          <p>Error: {error}</p>
           <button onClick={fetchDataQualityIssues}>Retry</button>
         </div>
       </div>
@@ -135,7 +135,7 @@ const DataQualityPanel = ({ agentId, agentName }) => {
           onClick={handleRevalidate}
           disabled={loading}
         >
-          {loading ? '⟳ Validating...' : '⟳ Revalidate'}
+          {loading ? 'Validating...' : 'Revalidate'}
         </button>
       </div>
 
@@ -154,7 +154,7 @@ const DataQualityPanel = ({ agentId, agentName }) => {
           onClick={() => setFilter('critical')}
         >
           <div className="card-value">{issues.critical}</div>
-          <div className="card-label">🔴 Critical</div>
+          <div className="card-label">Critical</div>
         </div>
 
         <div
@@ -162,7 +162,7 @@ const DataQualityPanel = ({ agentId, agentName }) => {
           onClick={() => setFilter('warning')}
         >
           <div className="card-value">{issues.warnings}</div>
-          <div className="card-label">⚠️ Warnings</div>
+          <div className="card-label">Warnings</div>
         </div>
 
         <div
@@ -170,14 +170,14 @@ const DataQualityPanel = ({ agentId, agentName }) => {
           onClick={() => setFilter('info')}
         >
           <div className="card-value">{issues.info}</div>
-          <div className="card-label">ℹ️ Info</div>
+          <div className="card-label">Info</div>
         </div>
       </div>
 
       {/* Issues List */}
       {filteredIssues.length === 0 ? (
         <div className="no-issues">
-          <div className="success-icon">✅</div>
+          <div className="success-icon"></div>
           <h3>No {filter !== 'all' ? filter : ''} issues found!</h3>
           <p>Database passed all validation checks.</p>
         </div>

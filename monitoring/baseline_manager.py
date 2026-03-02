@@ -82,3 +82,56 @@ def _create_baseline_from_file(agent_type: str, detector: DriftDetector):
 
     except Exception as e:
         logger.error(f"Error creating baseline for {agent_type}: {e}")
+
+
+# ==================== PSI Result Baseline ====================
+
+def initialize_result_baseline_if_needed():
+    """
+    Initialize PSI result distribution baseline for all registered agents.
+    Skips agents that already have a baseline.
+    Called at startup alongside initialize_baseline_if_needed().
+    """
+    try:
+        from monitoring.result_drift_detector import ResultDriftDetector
+        from agent_platform.gt_storage import get_gt_storage
+
+        detector    = ResultDriftDetector()
+        storage     = get_gt_storage()
+        agent_types = _get_agent_types()
+
+        for agent_type in agent_types:
+            # Skip if baseline already exists for this agent
+            existing = detector._load_baseline(agent_type)
+            if existing:
+                logger.info(
+                    f"Result baseline already exists for '{agent_type}' "
+                    f"({len(existing)} columns). Skipping."
+                )
+                continue
+
+            # Load GT file
+            normalized = agent_type.lower().replace(' ', '_').replace('_agent', '')
+            data = storage.load(f"{normalized}_agent_queries.json")
+            if data is None:
+                logger.warning(
+                    f"No GT file found for '{agent_type}' — result baseline skipped"
+                )
+                continue
+
+            queries = data.get("queries", [])
+            if not queries:
+                logger.warning(
+                    f"No queries in GT for '{agent_type}' — result baseline skipped"
+                )
+                continue
+
+            result = detector.create_baseline(agent_type, queries)
+            logger.info(
+                f"Result baseline initialized for '{agent_type}': "
+                f"{result.get('columns_baselined')} columns, "
+                f"{result.get('sample_count')} samples"
+            )
+
+    except Exception as e:
+        logger.error(f"Failed to initialize result baseline: {e}")

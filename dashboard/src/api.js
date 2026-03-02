@@ -24,6 +24,7 @@ api.interceptors.request.use((config) => {
 export const fetchHealth = () => api.get('/health').then(r => r.data);
 export const fetchMetrics = (agentType) => api.get(`${BASE}/metrics`, { params: agentType ? { agent_type: agentType } : {} }).then(r => r.data);
 export const fetchDrift = (agentType) => api.get(`${BASE}/drift`, { params: agentType ? { agent_type: agentType } : {} }).then(r => r.data);
+export const fetchResultDrift = (agentType) => api.get(`${BASE}/result-drift`, { params: agentType ? { agent_type: agentType } : {} }).then(r => r.data);
 export const fetchErrors = (category, agentType) => api.get(`${BASE}/errors`, { params: { ...(category ? { category } : {}), ...(agentType ? { agent_type: agentType } : {}) } }).then(r => r.data);
 export const fetchErrorsByCategory = (category) => api.get(`${BASE}/errors/${category}`).then(r => r.data);
 export const fetchUserInfo = () => api.get(`${BASE}/auth/me`).then(r => r.data);

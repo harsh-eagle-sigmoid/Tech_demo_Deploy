@@ -422,9 +422,57 @@ def initialize_database():
 
     migrate_health_columns()
     migrate_schema_tables()
+    migrate_result_drift_tables()
 
     logger.info("Database initialization completed successfully!")
     return True
+
+
+def migrate_result_drift_tables():
+    """Create PSI result drift tables if they don't exist (safe to run multiple times)."""
+    try:
+        conn = psycopg2.connect(
+            host=settings.DB_HOST, port=settings.DB_PORT,
+            database=settings.DB_NAME, user=settings.DB_USER,
+            password=settings.DB_PASSWORD
+        )
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS monitoring.result_drift_baseline (
+                baseline_id  SERIAL PRIMARY KEY,
+                agent_type   VARCHAR(20)  NOT NULL,
+                column_name  VARCHAR(100) NOT NULL,
+                bucket_edges JSONB        NOT NULL,
+                expected_pct JSONB        NOT NULL,
+                sample_count INTEGER,
+                created_at   TIMESTAMP DEFAULT NOW(),
+                UNIQUE (agent_type, column_name)
+            )
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS monitoring.result_drift_monitoring (
+                result_drift_id      SERIAL PRIMARY KEY,
+                query_id             VARCHAR(50) UNIQUE REFERENCES monitoring.queries(query_id),
+                agent_type           VARCHAR(20) NOT NULL,
+                psi_scores           JSONB       NOT NULL,
+                overall_psi          FLOAT,
+                drift_classification VARCHAR(20),
+                is_anomaly           BOOLEAN DEFAULT FALSE,
+                columns_analyzed     INTEGER,
+                created_at           TIMESTAMP DEFAULT NOW()
+            )
+        """)
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+        logger.info("PSI result drift tables created/verified successfully")
+        return True
+    except Exception as e:
+        logger.error(f"migrate_result_drift_tables failed: {e}")
+        return False
 
 
 if __name__ == "__main__":

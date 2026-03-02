@@ -45,10 +45,9 @@ _ground_truth_cache = None
 _semantic_matcher = None
 db_pool = None
 
-from monitoring.baseline_manager import initialize_baseline_if_needed
+from monitoring.baseline_manager import initialize_baseline_if_needed, initialize_result_baseline_if_needed
 from evaluation.semantic_match import SemanticMatcher
 import evaluation.semantic_match
-from agent_platform.poller import start_polling, stop_polling
 from agent_platform.health_checker import start_health_checker, stop_health_checker
 from agent_platform.agent_manager import AgentManager
 from agent_platform.schema_monitor_scheduler import SchemaMonitorScheduler
@@ -96,8 +95,8 @@ async def startup_event():
         # Initialize drift baseline if not already present in DB
         asyncio.create_task(asyncio.to_thread(initialize_baseline_if_needed))
 
-        # Start DB poller for registered agents
-        asyncio.create_task(start_polling())
+        # Initialize PSI result distribution baseline if not already present
+        asyncio.create_task(asyncio.to_thread(initialize_result_baseline_if_needed))
 
         # Start health checker for agent monitoring
         asyncio.create_task(start_health_checker())
@@ -117,7 +116,6 @@ async def startup_event():
 def shutdown_event():
     """Close all DB connections on app shutdown."""
     global db_pool, schema_scheduler
-    stop_polling()
     stop_health_checker()
 
     # Stop schema monitor scheduler
@@ -351,6 +349,34 @@ def process_ingest_background(query_id: str, req: IngestRequest):
             # Only store here if evaluate() didn't already store (error classification path stores internally)
             if "error_classification" not in eval_result:
                 evaluator.store_result(eval_result)
+
+            # Step 4 (NEW): PSI Result Distribution Drift
+            # Reuse result rows already captured during evaluation (no extra SQL execution)
+            try:
+                _output_sample = (
+                    eval_result.get("steps", {}).get("result_validation", {})
+                    .get("details", {}).get("output_sample")
+                    or eval_result.get("result_validation", {}).get("details", {}).get("output_sample")
+                )
+                if _output_sample:
+                    _rows = _output_sample.get("rows", [])
+                    _cols = _output_sample.get("columns", [])
+                    if _rows and _cols:
+                        from monitoring.result_drift_detector import ResultDriftDetector
+                        _psi = ResultDriftDetector().detect_psi(
+                            agent_type=req.agent_type,
+                            query_id=query_id,
+                            result_rows=_rows,
+                            columns=_cols
+                        )
+                        if _psi.get("is_anomaly"):
+                            logger.warning(
+                                f"High PSI result drift [{query_id}]: "
+                                f"overall_psi={_psi['overall_psi']:.4f}, "
+                                f"columns={list(_psi['psi_scores'].keys())}"
+                            )
+            except Exception as _psi_err:
+                logger.error(f"PSI result drift check failed for {query_id}: {_psi_err}")
 
         except Exception as e:
             logger.error(f"Evaluation failed: {e}")
@@ -624,6 +650,120 @@ def get_drift(agent_type: Optional[str] = Query(None)):
         "high_drift_samples": high_samples,
         "trend":             trend
     }
+
+# ==================== RESULT DRIFT ENDPOINT ====================
+
+@app.get("/api/v1/result-drift")
+def get_result_drift(agent_type: Optional[str] = Query(None)):
+    """Return PSI result drift distribution, anomalies, high-PSI samples, and trend."""
+    with get_db() as conn:
+        cur = conn.cursor()
+
+        agent_where = "WHERE LOWER(rd.agent_type) = LOWER(%s)" if agent_type else ""
+        agent_and   = "AND LOWER(rd.agent_type) = LOWER(%s)" if agent_type else ""
+        params      = [agent_type] if agent_type else []
+
+        # PSI classification distribution (normal/medium/high counts + avg PSI)
+        cur.execute(f"""
+            SELECT LOWER(rd.drift_classification), COUNT(*), AVG(rd.overall_psi)
+            FROM monitoring.result_drift_monitoring rd
+            {agent_where}
+            GROUP BY LOWER(rd.drift_classification)
+            ORDER BY LOWER(rd.drift_classification)
+        """, params)
+        distribution = {
+            row[0]: {"count": row[1], "avg_psi": round(float(row[2]), 4)}
+            for row in cur.fetchall()
+        }
+
+        # Total anomalies
+        cur.execute(f"""
+            SELECT COUNT(*) FROM monitoring.result_drift_monitoring rd
+            WHERE rd.is_anomaly = true {agent_and}
+        """, params)
+        anomalies = cur.fetchone()[0]
+
+        # Top 20 high-PSI queries with details
+        cur.execute(f"""
+            SELECT rd.query_id, rd.overall_psi, rd.drift_classification,
+                   rd.psi_scores, rd.columns_analyzed, q.query_text, q.generated_sql, q.agent_type
+            FROM monitoring.result_drift_monitoring rd
+            LEFT JOIN monitoring.queries q ON rd.query_id = q.query_id
+            WHERE LOWER(rd.drift_classification) = 'high' {agent_and}
+            ORDER BY rd.overall_psi DESC LIMIT 20
+        """, params)
+        high_samples = []
+        for r in cur.fetchall():
+            psi_scores = r[3] if isinstance(r[3], dict) else {}
+            try:
+                import json as _json
+                if isinstance(r[3], str):
+                    psi_scores = _json.loads(r[3])
+            except Exception:
+                psi_scores = {}
+            high_samples.append({
+                "query_id": r[0],
+                "overall_psi": round(float(r[1]), 4),
+                "classification": r[2],
+                "psi_scores": psi_scores,
+                "columns_analyzed": r[4],
+                "query_text": r[5] or "Unknown",
+                "sql": r[6] or "Not Available",
+                "agent_type": r[7] or (agent_type or "unknown")
+            })
+
+        # Daily PSI trend
+        cur.execute(f"""
+            SELECT date_trunc('day', rd.created_at) as date, AVG(rd.overall_psi)
+            FROM monitoring.result_drift_monitoring rd
+            {agent_where}
+            GROUP BY 1
+            ORDER BY 1
+        """, params)
+        trend = [
+            {
+                "date": row[0].strftime("%b %d") if row[0] else "Unknown",
+                "avg_psi": round(float(row[1]), 4) if row[1] else 0.0
+            }
+            for row in cur.fetchall()
+        ]
+
+        # Column-level PSI averages across all queries
+        cur.execute(f"""
+            SELECT rd.psi_scores
+            FROM monitoring.result_drift_monitoring rd
+            {agent_where}
+            ORDER BY rd.created_at DESC LIMIT 200
+        """, params)
+        col_totals: dict = {}
+        col_counts: dict = {}
+        for (psi_raw,) in cur.fetchall():
+            scores = psi_raw if isinstance(psi_raw, dict) else {}
+            try:
+                import json as _json2
+                if isinstance(psi_raw, str):
+                    scores = _json2.loads(psi_raw)
+            except Exception:
+                scores = {}
+            for col, val in scores.items():
+                col_totals[col] = col_totals.get(col, 0.0) + float(val)
+                col_counts[col] = col_counts.get(col, 0) + 1
+        column_avg_psi = [
+            {"column": col, "avg_psi": round(col_totals[col] / col_counts[col], 4)}
+            for col in col_totals
+        ]
+        column_avg_psi.sort(key=lambda x: x["avg_psi"], reverse=True)
+
+        cur.close()
+
+    return {
+        "distribution":      distribution,
+        "total_anomalies":   anomalies,
+        "high_drift_samples": high_samples,
+        "trend":             trend,
+        "column_avg_psi":    column_avg_psi
+    }
+
 
 # ==================== EXECUTE SQL ENDPOINT ====================
 
@@ -1105,6 +1245,7 @@ def register_agent(req: RegisterAgentRequest, background_tasks: BackgroundTasks)
     # Kick off discovery + baseline creation in background
     background_tasks.add_task(mgr.discover_and_configure, agent["agent_id"])
     background_tasks.add_task(initialize_baseline_if_needed)
+    background_tasks.add_task(initialize_result_baseline_if_needed)
 
     api_key = agent.get("api_key", "")
     agent_name = agent.get("agent_name", "agent")
