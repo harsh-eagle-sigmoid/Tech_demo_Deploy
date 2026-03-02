@@ -408,13 +408,20 @@ class Evaluator:
                 result_validation_score
             )
 
-            # If both LLM and output validation failed badly, the GT match was likely wrong
-            # (e.g., "revenue > 10,000" matched to "revenue > 50,000").
-            # Fall back to heuristic + LLM output evaluation to give the query a fair score.
-            if llm_score == 0.0 and result_validation_score < 0.3:
+            # Detect wrong GT match and fall back to heuristic + LLM output evaluation.
+            # Two signals of a wrong GT entry:
+            #   1. LLM=PASS but output very low: SQL is structurally correct but was compared
+            #      against the wrong GT query (different metric, same GROUP BY structure).
+            #      e.g. "avg clicks by campaign" matched to "total spend by campaign".
+            #   2. Both LLM and output failed: GT matched but content is genuinely wrong.
+            wrong_gt_detected = (
+                (result_validation_score < 0.25 and llm_score == 1.0) or
+                (llm_score == 0.0 and result_validation_score < 0.3)
+            )
+            if wrong_gt_detected:
                 logger.warning(
                     f"Query {query_id}: GT match appears wrong "
-                    f"(LLM=FAIL, output={result_validation_score:.2f}). "
+                    f"(LLM={'PASS' if llm_score == 1.0 else 'FAIL'}, output={result_validation_score:.2f}). "
                     f"Falling back to heuristic evaluation."
                 )
                 heuristic_res = self.manager.evaluate_heuristic(
@@ -424,7 +431,7 @@ class Evaluator:
                 result["final_score"] = heuristic_res["final_score"]
                 result["confidence"] = heuristic_res["confidence"]
                 result["scores"] = heuristic_res["components"]
-                result["reasoning"] = "Heuristic Fallback (GT match rejected by LLM + output validation)"
+                result["reasoning"] = "Heuristic Fallback (Wrong GT match detected — different metric or query)"
                 # Clear the wrong GT comparison from steps so dashboard shows LLM validation instead
                 result["steps"].pop("result_validation", None)
 
