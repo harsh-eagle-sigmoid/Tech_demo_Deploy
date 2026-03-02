@@ -198,6 +198,16 @@ class Evaluator:
         }
 
         try:
+            # Step 0: Pre-check — reject non-business / non-data queries immediately
+            if not self._is_business_query(query_text):
+                logger.warning(f"Query {query_id}: Non-business query rejected — '{query_text[:60]}'")
+                result["final_result"] = "FAIL"
+                result["final_score"] = 0.0
+                result["confidence"] = 1.0
+                result["error_message"] = "Non-business query: not a data or analytics request"
+                self.store_result(result)
+                return result
+
             # Step 1: Preprocess — clean SQL, remove markdown fences
             preprocessed = self.preprocess(query_text, generated_sql)
             result["steps"]["preprocessing"] = preprocessed
@@ -207,6 +217,17 @@ class Evaluator:
             structural_result = self.structural_validator.validate(cleaned_sql)
             result["steps"]["structural_validation"] = structural_result
             result["scores"]["structural"] = structural_result["score"]
+
+            # Step 2b: Reject SQL that queries no real table (e.g. SELECT 'joke' AS joke)
+            # A valid data query must have a FROM clause referencing an actual table.
+            if structural_result["score"] > 0.0 and "FROM" not in cleaned_sql.upper():
+                logger.warning(f"Query {query_id}: SQL has no FROM clause — not a real data query")
+                result["final_result"] = "FAIL"
+                result["final_score"] = 0.0
+                result["confidence"] = 1.0
+                result["error_message"] = "SQL does not query any table (no FROM clause)"
+                self.store_result(result)
+                return result
 
             # If structural error is classifiable (syntax/table/column), store FAIL + classify error
             if structural_result.get("requires_classification", False):
@@ -525,6 +546,30 @@ class Evaluator:
         confidence = (llm_confidence + final_score) / 2.0
 
         return final_score, final_result, confidence
+
+    @staticmethod
+    def _is_business_query(query_text: str) -> bool:
+        """
+        Return False for clearly non-data queries (jokes, greetings, etc.).
+        Only blocks obvious non-business patterns — does not affect real data queries.
+        """
+        import re
+        q = query_text.strip().lower()
+        non_business_patterns = [
+            r'\btell\s+(?:me\s+)?(?:a\s+)?joke\b',
+            r'\bfunny\s+joke\b',
+            r'^(?:hi|hello|hey)\b[\s!.]*$',
+            r'\bhow\s+are\s+you\b',
+            r'\bwhat(?:\'s|\s+is)\s+(?:your\s+)?name\b',
+            r'\bwrite\s+(?:a\s+)?(?:poem|story|song|essay)\b',
+            r'\bwho\s+(?:are|is)\s+you\b',
+            r'\bthank(?:s| you)\b',
+            r'^(?:lol|haha|ok|okay|sure|bye|goodbye)[\s!.]*$',
+        ]
+        for pat in non_business_patterns:
+            if re.search(pat, q):
+                return False
+        return True
 
     def store_result(self, evaluation_result: Dict) -> Optional[int]:
         """Store evaluation result to monitoring.evaluations table, return evaluation_id."""
