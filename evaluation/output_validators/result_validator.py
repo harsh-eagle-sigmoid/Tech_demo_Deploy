@@ -363,28 +363,35 @@ class ResultValidator:
         gt_rows_tuples = [tuple(row) for row in gt_sample_rows]
 
         # Row count comparison: use stored TOTAL row count from GT (not sample size).
-        # This correctly handles when GT stores only 10 sample rows but total is e.g. 56.
         row_count_match = (gen_result.row_count == gt_row_count)
 
-        # Content comparison: trim generated rows to the sample size so the comparator
-        # gets equal-length arrays and can actually compare content (not just lengths).
-        sample_size = len(gt_rows_tuples)
-        gen_rows_for_comparison = gen_result.rows[:sample_size] if sample_size > 0 else gen_result.rows
+        # Schema comparison
+        schema_match = self.comparator._compare_schemas(gen_result.columns, gt_columns)
 
-        # Compare schema + content (using sample-trimmed rows)
-        comparison = self.comparator.compare(
-            result1_columns=gen_result.columns,
-            result1_rows=gen_rows_for_comparison,
-            result2_columns=gt_columns,
-            result2_rows=gt_rows_tuples
-        )
+        # Content comparison: set-based membership check.
+        # Check what fraction of GT sample rows appear ANYWHERE in the full live result.
+        # This is robust to ordering changes between GT generation time and live execution.
+        # (Avoids the false 0% caused by comparing first-N rows when DB order can change.)
+        content_match_rate = 0.0
+        if gt_rows_tuples and gen_result.rows:
+            try:
+                gen_normalized = {self.comparator._normalize_row(r) for r in gen_result.rows}
+                matched = sum(
+                    1 for gt_row in gt_rows_tuples
+                    if self.comparator._normalize_row(gt_row) in gen_normalized
+                )
+                content_match_rate = matched / len(gt_rows_tuples)
+            except Exception as _cmp_err:
+                logger.warning(f"Set-based content comparison failed: {_cmp_err}")
+                content_match_rate = 0.0
+        elif not gt_rows_tuples:
+            content_match_rate = 1.0  # No samples to check → assume content matches
 
-        # Calculate weighted score using correct row_count_match (total vs total)
-        # Schema: 20%, Row count: 20%, Content: 60%
+        # Calculate weighted score: Schema 20%, Row count 20%, Content 60%
         score = (
-            0.20 * (1.0 if comparison.schema_match else 0.0) +
+            0.20 * (1.0 if schema_match else 0.0) +
             0.20 * (1.0 if row_count_match else 0.5) +
-            0.60 * comparison.content_match_rate
+            0.60 * content_match_rate
         )
 
         # Determine confidence based on match quality
@@ -404,18 +411,18 @@ class ResultValidator:
 
         logger.info(
             f"GT output validation complete: score={score:.2f}, "
-            f"schema_match={comparison.schema_match}, "
+            f"schema_match={schema_match}, "
             f"row_count_match={row_count_match}, "
-            f"content_match={comparison.content_match_rate:.2f}"
+            f"content_match={content_match_rate:.2f}"
         )
 
         return ValidationResult(
             score=score,
             confidence=confidence,
             execution_success=True,
-            schema_match=comparison.schema_match,
+            schema_match=schema_match,
             row_count_match=row_count_match,
-            content_match_rate=comparison.content_match_rate,
+            content_match_rate=content_match_rate,
             generated_execution_time_ms=gen_result.execution_time_ms,
             gt_execution_time_ms=gt_expected_output.get("execution_time_ms"),
             error=None,

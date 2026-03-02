@@ -331,19 +331,30 @@ class Evaluator:
 
             if self.agent_db_url:
                 try:
-                    # NEW: Check if GT has expected_output for direct comparison
-                    if gt_expected_output:
-                        logger.info("Using GT expected output validation (more accurate)")
+                    sem_score = result["scores"]["semantic"]
+
+                    # Only use GT expected output if semantic match is strong enough.
+                    # Below 0.65 means the matched GT is likely the wrong query →
+                    # comparing against it would unfairly penalise a correct answer.
+                    if gt_expected_output and sem_score >= 0.65:
+                        logger.info(f"Using GT expected output validation (sem={sem_score:.2f})")
                         validation_result = self.result_validator.validate_with_gt_output(
                             query_text=query_text,
                             generated_sql=cleaned_sql,
                             gt_expected_output=gt_expected_output,
                             db_url=self.agent_db_url
                         )
+                    elif gt_expected_output and sem_score < 0.65:
+                        # GT match too weak — fall back to LLM output validation so
+                        # the query is judged on its own merits, not a wrong GT.
+                        logger.info(f"GT sem={sem_score:.2f} too low — using LLM output validation instead")
+                        validation_result = self.result_validator.validate_with_llm(
+                            query_text=query_text,
+                            generated_sql=cleaned_sql,
+                            db_url=self.agent_db_url
+                        )
                     else:
-                        # Fallback to SQL execution comparison
-                        # Determine GT match confidence from semantic score
-                        sem_score = result["scores"]["semantic"]
+                        # No GT expected output → SQL execution comparison
                         if sem_score >= 0.90:
                             gt_match_confidence = "HIGH"
                         elif sem_score >= 0.75:
