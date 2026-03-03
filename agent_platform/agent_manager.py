@@ -439,7 +439,7 @@ class AgentManager:
                 # Check if file was created and get query count
                 from agent_platform.gt_storage import get_gt_storage
                 agent_name = agent['agent_name'].lower().replace(' ', '_')
-                filename = f"{agent_name}_queries.json"
+                filename = f"{agent_name}_agent_queries.json"
                 gt_storage = get_gt_storage()
                 data = gt_storage.load(filename)
 
